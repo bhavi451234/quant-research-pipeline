@@ -1,0 +1,42 @@
+# Default experiment configuration.
+# Every experiment run should be driven by a config file like this one,
+# so a result is always reproducible from the config alone.
+
+experiment_name: "sma_crossover_baseline"
+
+data:
+  tickers: ["AAPL", "MSFT", "GOOGL"]
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+  # Split date: everything before is train (used to design/tune the strategy),
+  # everything from here on is test (touched only once, at the end).
+  train_test_split_date: "2023-01-01"
+
+features:
+  # Each entry maps to a function in src/features/library.py
+  - name: sma
+    params: { window: 20 }
+  - name: sma
+    params: { window: 50 }
+  - name: ema
+    params: { span: 20 }
+  - name: rsi
+    params: { window: 14 }
+  - name: volatility
+    params: { window: 20 }
+
+strategy:
+  name: sma_crossover
+  params:
+    fast_window: 20
+    slow_window: 50
+
+backtest:
+  initial_capital: 100000
+  transaction_cost_bps: 5      # 5 basis points per trade, a realistic-ish retail assumption
+  slippage_bps: 2
+  position_size_pct: 1.0       # fraction of capital to deploy per signal
+
+evaluation:
+  risk_free_rate_annual: 0.05
+  metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "cagr"]

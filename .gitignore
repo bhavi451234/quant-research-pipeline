@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Data cache - don't commit downloaded price data
+data/cache/
+*.csv
+
+# Environment / secrets
+.env
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
