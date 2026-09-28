@@ -1,5 +1,8 @@
 import pandas as pd
 
+from src.features.library import compute_features
+from src.strategies.library import compute_signal
+
 
 
 def rolling_windows(total_length: int, train_size: int, test_size: int, step_size: int = None) -> list:
@@ -59,3 +62,32 @@ def walk_forward_splits(df: pd.DataFrame, train_size: int, test_size: int, step_
         splits.append((train_df, test_df))
     
     return splits
+
+
+def walk_forward_signals(df: pd.DataFrame, feature_cfg: list, strategy_name: str,
+                         strategy_params: dict, train_size: int, test_size: int,
+                         step_size: int = None) -> pd.DataFrame:
+       if step_size is None:
+             step_size = test_size
+       if step_size < 1 or step_size > test_size :
+             raise ValueError(
+                  f"step_size must be between 1 and test_size"
+             )
+       
+    
+       splits = walk_forward_splits
+       if splits is [] : 
+          raise ValueError(
+                f"No splits possible for the given conditions"
+          )
+       
+       pieces = [] 
+       for window_number, (train, test) in enumerate(splits):
+         a. window_df = pd.concat([train, test])
+        b. featured = compute_features(window_df, feature_cfg)
+         c. the NaN guard (code below)
+         d. signal = compute_signal(featured, strategy_name, strategy_params)
+         e. build a table of Close and signal for the TEST rows only,
+             then add a "window" column holding window_number
+         f. pieces.append(that table)
+        return pd.concat(pieces)
