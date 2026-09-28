@@ -2,7 +2,7 @@
 # Every experiment run should be driven by a config file like this one,
 # so a result is always reproducible from the config alone.
 
-experiment_name: "sma_crossover_baseline"
+experiment_name: "bollinger_strategy_baseline"
 
 data:
   tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
@@ -24,12 +24,18 @@ features:
     params: { window: 14 }
   - name: volatility
     params: { window: 20 }
+  - name: bollinger_middle
+    params: {window: 20}
+  - name: bollinger_upper
+    params: {window: 20, num_std: 2.0}
+  - name: bollinger_lower
+    params: {window: 20, num_std: 2.0}
 
 strategy:
-  name: sma_crossover
+  name: bollinger_reversion
   params:
-    fast_window: 20
-    slow_window: 50
+    window: 20
+    num_std: 2.0
 
 
 backtest:

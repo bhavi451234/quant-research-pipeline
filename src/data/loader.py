@@ -1,3 +1,4 @@
+
 """
 Data ingestion layer.
 
@@ -6,33 +7,26 @@ OHLCV DataFrames — and nothing else. No feature computation, no
 strategy logic here. Keeping this layer "dumb" is what lets you swap
 data sources later (a different API, a local CSV dump, a database)
 without touching anything downstream.
+
+Deliberately no caching: every call fetches fresh from yfinance. Given
+how fast the pipeline runs end-to-end, the simplicity of "always live
+data" outweighs the speed benefit of a cache for now.
+
+Deliberately strict: if a ticker fails to download, this raises
+immediately rather than silently skipping it. A pipeline that quietly
+drops bad data is more dangerous than one that stops and tells you.
 """
 
-import os
-from pathlib import Path
 import pandas as pd
 import yfinance as yf
 
-CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "cache"
 
-
-def _cache_path(ticker: str, start: str, end: str) -> Path:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    return CACHE_DIR / f"{ticker}_{start}_{end}.csv"
-
-
-def load_ticker(ticker: str, start_date: str, end_date: str, use_cache: bool = True) -> pd.DataFrame:
+def load_ticker(ticker: str, start_date: str, end_date: str) -> pd.DataFrame:
     """
     Load daily OHLCV data for a single ticker between start_date and end_date.
-    Caches to disk so re-running an experiment doesn't re-hit the network
-    every time — important once you're iterating quickly.
+    Raises ValueError if no data comes back - callers should let this
+    propagate rather than catching it, per the "strict" design decision.
     """
-    cache_file = _cache_path(ticker, start_date, end_date)
-
-    if use_cache and cache_file.exists():
-        df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
-        return df
-
     df = yf.download(ticker, start=start_date, end=end_date, progress=False, auto_adjust=True)
 
     if df.empty:
@@ -45,20 +39,21 @@ def load_ticker(ticker: str, start_date: str, end_date: str, use_cache: bool = T
     df = df[["Open", "High", "Low", "Close", "Volume"]]
     df.index.name = "date"
 
-    if use_cache:
-        df.to_csv(cache_file)
-
     return df
 
 
-def load_universe(tickers: list, start_date: str, end_date: str, use_cache: bool = True) -> dict:
+def load_universe(tickers: list, start_date: str, end_date: str) -> dict:
     """
     Load OHLCV data for a list of tickers. Returns {ticker: DataFrame}.
-    Kept as a dict rather than one big merged frame — merging is a
+    Kept as a dict rather than one big merged frame - merging is a
     features/backtest concern, not a loading concern.
+
+    The ticker list itself is entirely open - this function has no
+    knowledge of or limit on which tickers exist. Whatever list the
+    config gives it, it loads.
     """
     return {
-        ticker: load_ticker(ticker, start_date, end_date, use_cache=use_cache)
+        ticker: load_ticker(ticker, start_date, end_date)
         for ticker in tickers
     }
 

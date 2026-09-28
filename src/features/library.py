@@ -49,6 +49,21 @@ def momentum(df: pd.DataFrame, window: int = 20) -> pd.Series:
     """Simple price momentum: % change over the window."""
     return df["Close"].pct_change(periods=window)
 
+def bollinger_middle(df: pd.DataFrame, window: int = 20) ->pd.Series:
+    """Middle band of Bollinger Bands: simple moving average."""
+    return df["Close"].rolling(window=window, min_periods=window).mean()
+
+def bollinger_upper(df: pd.DataFrame, window: int = 20, num_std: float = 2) ->pd.Series:
+    """Upper band of Bollinger Bands: SMA + num_std * rolling std."""
+    sma = bollinger_middle(df, window)
+    rolling_std = df["Close"].rolling(window=window, min_periods=window).std()
+    return sma + (num_std * rolling_std)
+
+def bollinger_lower(df: pd.DataFrame, window: int = 20, num_std: float = 2) ->pd.Series:
+    """Lower band of Bollinger Bands: SMA - num_std * rolling std."""
+    sma = bollinger_middle(df, window)
+    rolling_std = df["Close"].rolling(window=window, min_periods=window).std()
+    return sma - (num_std * rolling_std)
 
 FEATURE_REGISTRY = {
     "sma": sma,
@@ -56,6 +71,9 @@ FEATURE_REGISTRY = {
     "rsi": rsi,
     "volatility": volatility,
     "momentum": momentum,
+    "bollinger_middle": bollinger_middle,
+    "bollinger_upper": bollinger_upper,
+    "bollinger_lower": bollinger_lower,
 }
 
 

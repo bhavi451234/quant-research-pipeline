@@ -4,7 +4,7 @@ Evaluation layer.
 Responsibility: turn a backtested equity curve into honest performance
 numbers, and make it trivial to compare train vs test performance side
 by side. That comparison is the single most important output of this
-whole pipeline — a strategy that looks great in-sample and falls apart
+whole pipeline - a strategy that looks great in-sample and falls apart
 out-of-sample is the default outcome of most backtesting, not the
 exception, and this layer exists to catch it rather than hide it.
 """
@@ -45,11 +45,51 @@ def max_drawdown(equity: pd.Series) -> float:
     return drawdown.min()
 
 
-def win_rate(strategy_returns: pd.Series) -> float:
-    traded = strategy_returns[strategy_returns != 0]
-    if traded.empty:
+def _identify_trades(position: pd.Series, strategy_return: pd.Series) -> list:
+    """
+    Groups consecutive days of holding the same nonzero position into
+    individual trades, and returns each trade's total return.
+
+    A trade starts when position changes from 0 (or a different sign)
+    to a new nonzero value, and ends when it returns to 0 or flips sign.
+    """
+    trade_id = (position != position.shift(1)).cumsum()
+
+    trade_returns = []
+    for _, group in strategy_return.groupby(trade_id):
+        if position.loc[group.index[0]] != 0:
+            trade_returns.append(group.sum())
+
+    return trade_returns
+
+
+def win_rate_per_trade(trade_results: list) -> float:
+    """
+    Given a list of individual trades' total returns, returns the
+    fraction that were net profitable.
+    """
+    if len(trade_results) == 0:
+        return float("nan")
+
+    wins = 0
+    for trade in trade_results:
+        if trade > 0:
+            wins += 1
+
+    return wins / len(trade_results)
+
+
+def win_rate(strategy_returns: pd.Series, position: pd.Series = None) -> float:
+    """
+    Fraction of TRADES (not days) that were net profitable. Requires
+    `position` so trades can be correctly grouped into individual
+    trades rather than counted day by day.
+    """
+    if position is None:
         return np.nan
-    return (traded > 0).mean()
+
+    trades = _identify_trades(position, strategy_returns)
+    return win_rate_per_trade(trades)
 
 
 def turnover(trades: pd.Series) -> float:
@@ -65,7 +105,7 @@ METRIC_REGISTRY = {
     "sharpe": lambda bt, cfg: sharpe_ratio(bt["strategy_return"], cfg.get("risk_free_rate_annual", 0.05)),
     "sortino": lambda bt, cfg: sortino_ratio(bt["strategy_return"], cfg.get("risk_free_rate_annual", 0.05)),
     "max_drawdown": lambda bt, cfg: max_drawdown(bt["equity"]),
-    "win_rate": lambda bt, cfg: win_rate(bt["strategy_return"]),
+    "win_rate": lambda bt, cfg: win_rate(bt["strategy_return"], bt["position"]),
     "turnover": lambda bt, cfg: turnover(bt["trade"]),
     "cagr": lambda bt, cfg: cagr(bt["strategy_return"]),
 }

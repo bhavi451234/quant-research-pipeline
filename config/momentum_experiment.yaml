@@ -2,7 +2,7 @@
 # Every experiment run should be driven by a config file like this one,
 # so a result is always reproducible from the config alone.
 
-experiment_name: "sma_crossover_baseline"
+experiment_name: "momentum_strategy_baseline"
 
 data:
   tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
@@ -22,14 +22,16 @@ features:
     params: { span: 20 }
   - name: rsi
     params: { window: 14 }
+  - name: momentum 
+    params: {window: 20}
   - name: volatility
     params: { window: 20 }
 
 strategy:
-  name: sma_crossover
+  name: momentum_strategy
   params:
-    fast_window: 20
-    slow_window: 50
+    momentum_window: 20
+    threshold: 0.02
 
 
 backtest:
