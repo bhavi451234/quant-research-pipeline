@@ -4,28 +4,29 @@ from src.features.library import compute_features
 from src.strategies.library import compute_signal
 
 
-
 def rolling_windows(total_length: int, train_size: int, test_size: int, step_size: int = None) -> list:
     """
     Generate rolling windows for walk-forward validation.
 
     Args:
-        total_length (int): Total length of the time series data.
-        train_size (int): Size of the training window.
-        test_size (int): Size of the testing window.
-        step_size (int, optional): Step size for rolling windows. Defaults to test_size if not provided.
+        total_length (int): Total number of rows in the time series.
+        train_size (int): Number of rows in each training window.
+        test_size (int): Number of rows in each testing window.
+        step_size (int, optional): How far the window slides each time.
+            Defaults to test_size if not provided.
 
     Returns:
-        list: A list of tuples, each containing the start and end indices for training and testing windows.
+        list: A list of (train_start, train_end, test_start, test_end) tuples of row
+        positions. Each end position is excluded, like Python slicing.
     """
     if step_size is None:
         step_size = test_size
 
     if step_size < 1 or step_size > test_size:
-         raise ValueError(
-             f"step_size must be between 1 and test_size ({test_size}), got {step_size}."
-             f"A step larger than test_size would leave gaps in the out-of-sample record."
-         ) 
+        raise ValueError(
+            f"step_size must be between 1 and test_size ({test_size}), got {step_size}. "
+            f"A step larger than test_size would leave gaps in the out-of-sample record."
+        )
 
     windows = []
     start = 0
@@ -39,55 +40,88 @@ def rolling_windows(total_length: int, train_size: int, test_size: int, step_siz
 
     return windows
 
+
 def walk_forward_splits(df: pd.DataFrame, train_size: int, test_size: int, step_size: int = None) -> list:
     """
-    Generate walk-forward splits for a given DataFrame.
+    Cut a DataFrame into (train, test) chunks, one pair per rolling window.
 
     Args:
-        df (pd.DataFrame): The input DataFrame containing time series data.
-        train_size (int): Size of the training window.
-        test_size (int): Size of the testing window.
-        step_size (int, optional): Step size for rolling windows. Defaults to test_size if not provided.
+        df (pd.DataFrame): The input time series.
+        train_size (int): Number of rows in each training chunk.
+        test_size (int): Number of rows in each testing chunk.
+        step_size (int, optional): How far the window slides each time.
+            Defaults to test_size if not provided.
 
     Returns:
-        list: A list of tuples, each containing the training and testing DataFrames for each split.
+        list: A list of (train_df, test_df) tuples, one per window.
     """
-    total_length = len(df)
-    windows = rolling_windows(total_length, train_size, test_size, step_size)
-    
+    windows = rolling_windows(len(df), train_size, test_size, step_size)
+
     splits = []
     for train_start, train_end, test_start, test_end in windows:
         train_df = df.iloc[train_start:train_end].copy()
         test_df = df.iloc[test_start:test_end].copy()
         splits.append((train_df, test_df))
-    
+
     return splits
 
 
 def walk_forward_signals(df: pd.DataFrame, feature_cfg: list, strategy_name: str,
                          strategy_params: dict, train_size: int, test_size: int,
                          step_size: int = None) -> pd.DataFrame:
-       if step_size is None:
-             step_size = test_size
-       if step_size < 1 or step_size > test_size :
-             raise ValueError(
-                  f"step_size must be between 1 and test_size"
-             )
-       
-    
-       splits = walk_forward_splits
-       if splits is [] : 
-          raise ValueError(
-                f"No splits possible for the given conditions"
-          )
-       
-       pieces = [] 
-       for window_number, (train, test) in enumerate(splits):
-         a. window_df = pd.concat([train, test])
-        b. featured = compute_features(window_df, feature_cfg)
-         c. the NaN guard (code below)
-         d. signal = compute_signal(featured, strategy_name, strategy_params)
-         e. build a table of Close and signal for the TEST rows only,
-             then add a "window" column holding window_number
-         f. pieces.append(that table)
-        return pd.concat(pieces)
+    """
+    Generate strategy signals for out-of-sample days only, one window at a time.
+
+    For each window, the train and test rows are joined into one block, features
+    are computed on that block alone (so nothing after the window can leak in),
+    the strategy produces signals, and only the test rows are kept. The kept
+    pieces are stacked into one continuous record.
+
+    Args:
+        df (pd.DataFrame): Raw price table (no features yet) with a Close column.
+        feature_cfg (list): The feature settings from the config's `features` section.
+        strategy_name (str): Name of a strategy in STRATEGY_REGISTRY.
+        strategy_params (dict): Settings for that strategy.
+        train_size (int): Rows in each train chunk. Must cover the longest feature lookback.
+        test_size (int): Rows in each test chunk.
+        step_size (int, optional): Must equal test_size (or be left out), because
+            overlapping test windows would give one day several signals.
+
+    Returns:
+        pd.DataFrame: Test rows only, with Close, signal and window columns.
+    """
+    if step_size is not None and step_size != test_size:
+        raise ValueError(
+            f"walk_forward_signals needs step_size equal to test_size ({test_size}), got {step_size}. "
+            f"A smaller step would make test windows overlap, so one day would get several signals."
+        )
+
+    splits = walk_forward_splits(df, train_size, test_size)
+    if len(splits) == 0:
+        raise ValueError(
+            f"No complete window fits: {len(df)} rows is fewer than "
+            f"train_size + test_size = {train_size + test_size}."
+        )
+
+    pieces = []
+    for window_number, (train, test) in enumerate(splits):
+        window_df = pd.concat([train, test])
+        featured = compute_features(window_df, feature_cfg)
+
+        feature_columns = [c for c in featured.columns if c not in window_df.columns]
+        if featured.loc[test.index, feature_columns].isna().any().any():
+            raise ValueError(
+                f"Window {window_number}: some features are still NaN on test rows. "
+                f"train_size={train_size} is shorter than the longest feature lookback."
+            )
+
+        signal = compute_signal(featured, strategy_name, strategy_params)
+
+        piece = pd.DataFrame({
+            "Close": featured.loc[test.index, "Close"],
+            "signal": signal.loc[test.index],
+        })
+        piece["window"] = window_number
+        pieces.append(piece)
+
+    return pd.concat(pieces)
