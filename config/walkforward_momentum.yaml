@@ -1,0 +1,30 @@
+experiment_name: "momentum_walkforward"
+
+data:
+  tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+
+features:
+  - name: momentum
+    params: { window: 20 }
+
+strategy:
+  name: momentum_strategy
+  params:
+    momentum_window: 20
+    threshold: 0.02
+
+walk_forward:
+  train_size: 504
+  test_size: 126
+
+backtest:
+  initial_capital: 100000
+  transaction_cost_bps: 5
+  slippage_bps: 2
+  position_size_pct: 1.0
+
+evaluation:
+  risk_free_rate_annual: 0.05
+  metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "cagr"]

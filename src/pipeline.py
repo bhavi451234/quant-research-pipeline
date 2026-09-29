@@ -14,7 +14,8 @@ from src.data.loader import load_ticker, train_test_split
 from src.features.library import compute_features
 from src.strategies.library import compute_signal
 from src.backtest.engine import BacktestEngine
-from src.evaluation.metrics import evaluate, compare_train_test
+from src.evaluation.metrics import evaluate, compare_train_test, walk_forward_evaluate, summarize_windows
+from src.validation.walk_forward import walk_forward_signals
 
 
 def run_pipeline_for_ticker(ticker: str, config: dict) -> dict:
@@ -80,3 +81,67 @@ def run_pipeline(config: dict) -> dict:
     for ticker in config["data"]["tickers"]:
         results[ticker] = run_pipeline_for_ticker(ticker, config)
     return results
+
+
+def run_walkforward_for_ticker(ticker: str, config: dict) -> dict:
+    """
+    Runs walk-forward validation for a single ticker and returns a dict with:
+      - backtest_result: the full stitched, backtested DataFrame (all windows)
+      - per_window: one row of metrics per window (from walk_forward_evaluate)
+      - summary: cross-window summary stats (from summarize_windows)
+
+    Unlike run_pipeline_for_ticker, there is no train/test split date here -
+    the config's `walk_forward` section (train_size, test_size) does that job
+    instead, sliding across the whole history.
+    """
+    data_cfg = config["data"]
+    feature_cfg = config["features"]
+    strategy_cfg = config["strategy"]
+    backtest_cfg = config["backtest"]
+    eval_cfg = config["evaluation"]
+    wf_cfg = config["walk_forward"]
+
+    # 1. Load raw data - same loader as the single-split pipeline.
+    raw = load_ticker(ticker, data_cfg["start_date"], data_cfg["end_date"])
+
+    # 2. Walk the whole history: for each window, compute features on that
+    #    window's block only, get signals, and keep the out-of-sample rows.
+    #    This one call replaces steps 2-3 (features + split) of the
+    #    single-split pipeline, since walk_forward_signals does both itself,
+    #    once per window.
+    signals = walk_forward_signals(
+        raw, feature_cfg, strategy_cfg["name"], strategy_cfg["params"],
+        train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
+    )
+
+    # 3. Backtest the stitched out-of-sample record ONCE, continuously -
+    #    same engine, same cost assumptions as everywhere else in the project.
+    engine = BacktestEngine(
+        initial_capital=backtest_cfg["initial_capital"],
+        transaction_cost_bps=backtest_cfg["transaction_cost_bps"],
+        slippage_bps=backtest_cfg["slippage_bps"],
+        position_size_pct=backtest_cfg["position_size_pct"],
+    )
+    backtest_result = engine.run(signals)
+
+    # 4. Metrics per window, then a cross-window summary.
+    per_window = walk_forward_evaluate(backtest_result, eval_cfg["metrics"], eval_cfg)
+    summary = summarize_windows(per_window)
+
+    return {
+        "ticker": ticker,
+        "backtest_result": backtest_result,
+        "per_window": per_window,
+        "summary": summary,
+    }
+
+
+def run_walkforward(config: dict) -> dict:
+    """Runs walk-forward validation across every ticker in the config's universe."""
+    results = {}
+    for ticker in config["data"]["tickers"]:
+        results[ticker] = run_walkforward_for_ticker(ticker, config)
+    return results
+
+
+

@@ -1,0 +1,39 @@
+# Walk-forward configuration for SMA crossover.
+# Same data/features/strategy/backtest/evaluation sections as a normal config -
+# the only new thing is `walk_forward`, which replaces train_test_split_date.
+
+experiment_name: "sma_crossover_walkforward"
+
+data:
+  tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+
+features:
+  - name: sma
+    params: { window: 20 }
+  - name: sma
+    params: { window: 50 }
+
+strategy:
+  name: sma_crossover
+  params:
+    fast_window: 20
+    slow_window: 50
+
+# train_size must be >= the longest feature lookback above (here, 50).
+# test_size is how many rows each window scores; step_size is not set here,
+# so it defaults to test_size (required by walk_forward_signals anyway).
+walk_forward:
+  train_size: 504   # ~2 years
+  test_size: 126     # ~6 months
+
+backtest:
+  initial_capital: 100000
+  transaction_cost_bps: 5
+  slippage_bps: 2
+  position_size_pct: 1.0
+
+evaluation:
+  risk_free_rate_annual: 0.05
+  metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "cagr"]
