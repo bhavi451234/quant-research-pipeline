@@ -135,3 +135,52 @@ def compare_train_test(train_metrics: dict, test_metrics: dict) -> pd.DataFrame:
         delta = test_val - train_val if pd.notna(train_val) and pd.notna(test_val) else np.nan
         rows.append({"metric": metric, "train": train_val, "test": test_val, "delta": delta})
     return pd.DataFrame(rows).set_index("metric")
+
+def walk_forward_evaluate(backtest_result: pd.DataFrame, metric_names: list, eval_config: dict) -> pd.DataFrame:
+    """
+    Compute metrics separately for each walk-forward window.
+
+    Args:
+        backtest_result (pd.DataFrame): The output of BacktestEngine.run() on a
+            walk_forward_signals table. Must have a 'window' column.
+        metric_names (list): Which metrics to compute, e.g. ["sharpe", "cagr"].
+        eval_config (dict): Settings passed to evaluate(), e.g. risk_free_rate_annual.
+
+    Returns:
+        pd.DataFrame: One row per window, one column per metric, indexed by window.
+    """
+    window_numbers = sorted(backtest_result["window"].unique())
+
+    rows = []
+    for w in window_numbers:
+        window_slice = backtest_result[backtest_result["window"] == w]
+        metrics = evaluate(window_slice, metric_names, eval_config)
+        metrics["window"] = w
+        rows.append(metrics)
+
+    return pd.DataFrame(rows).set_index("window")
+
+
+def summarize_windows(per_window: pd.DataFrame, metric: str ="sharpe") -> dict:
+    """
+    Summarize a walk_forward_evaluate() table into a few headline numbers,
+    based on the Sharpe ratio column.
+
+    Args:
+        per_window (pd.DataFrame): The output of walk_forward_evaluate().
+
+    Returns:
+        dict: mean and spread of Sharpe across windows, the fraction of windows
+        with positive Sharpe, and which window had the worst Sharpe.
+    """
+    mean_val = per_window[metric].mean()
+    std_val = per_window[metric].std()
+    pct_positive = (per_window[metric] > 0).mean()
+    worst_window = per_window[metric].idxmin()
+
+    return {
+        f"mean_{metric}": mean_val,
+        f"std_{metric}": std_val,
+        f"pct_positive_{metric}_windows": pct_positive,
+        "worst_window": worst_window,
+    }

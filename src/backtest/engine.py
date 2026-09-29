@@ -59,4 +59,4 @@ class BacktestEngine:
 
         out["equity"] = self.initial_capital * (1 + out["strategy_return"]).cumprod()
 
-        return out
+        return out 
