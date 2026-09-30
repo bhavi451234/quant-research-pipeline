@@ -24,8 +24,10 @@ FEATURE_PARAMS = {
     "bollinger_middle": {"window": 20},
     "bollinger_upper": {"window": 20, "num_std": 2.0},
     "bollinger_lower": {"window": 20, "num_std": 2.0},
+    "price_to_sma": {"window": 20},
+    "price_to_ema": {"span": 20},
+    "bollinger_position": {"window": 20, "num_std": 2.0},
 }
-
 
 def test_features_only_use_past_data():
     df = make_prices()

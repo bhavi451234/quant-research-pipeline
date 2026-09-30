@@ -65,6 +65,33 @@ def bollinger_lower(df: pd.DataFrame, window: int = 20, num_std: float = 2) ->pd
     rolling_std = df["Close"].rolling(window=window, min_periods=window).std()
     return sma - (num_std * rolling_std)
 
+def price_to_sma(df: pd.DataFrame, window: int = 20) -> pd.Series:
+    """
+    Scale-free version of SMA: how far price sits from its average, as a
+    fraction of the average. Unlike raw SMA, this is comparable across time
+    even as the stock's price level changes (e.g. AAPL at $15 vs $220).
+    """
+    baseline = sma(df, window)
+    return (df["Close"] - baseline) / baseline
+
+
+def price_to_ema(df: pd.DataFrame, span: int = 20) -> pd.Series:
+    """Scale-free version of EMA, same idea as price_to_sma."""
+    baseline = ema(df, span)
+    return (df["Close"] - baseline) / baseline
+
+
+def bollinger_position(df: pd.DataFrame, window: int = 20, num_std: float = 2.0) -> pd.Series:
+    """
+    Where price sits within the Bollinger Bands, as a 0-to-1 position
+    (0 = touching the lower band, 1 = touching the upper band, 0.5 = at
+    the middle). Scale-free, unlike the raw band values.
+    """
+    upper = bollinger_upper(df, window, num_std)
+    lower = bollinger_lower(df, window, num_std)
+    return (df["Close"] - lower) / (upper - lower)
+
+
 FEATURE_REGISTRY = {
     "sma": sma,
     "ema": ema,
@@ -74,8 +101,10 @@ FEATURE_REGISTRY = {
     "bollinger_middle": bollinger_middle,
     "bollinger_upper": bollinger_upper,
     "bollinger_lower": bollinger_lower,
+    "price_to_sma": price_to_sma,
+    "price_to_ema": price_to_ema,
+    "bollinger_position": bollinger_position,
 }
-
 
 def compute_features(df: pd.DataFrame, feature_configs: list) -> pd.DataFrame:
     """
@@ -99,3 +128,6 @@ def compute_features(df: pd.DataFrame, feature_configs: list) -> pd.DataFrame:
         out[col_name] = FEATURE_REGISTRY[name](df, **params)
 
     return out
+
+
+
