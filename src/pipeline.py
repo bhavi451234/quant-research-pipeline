@@ -16,6 +16,8 @@ from src.strategies.library import compute_signal
 from src.backtest.engine import BacktestEngine
 from src.evaluation.metrics import evaluate, compare_train_test, walk_forward_evaluate, summarize_windows
 from src.validation.walk_forward import walk_forward_signals
+from src.evaluation.metrics import evaluate, compare_train_test, walk_forward_evaluate, summarize_windows
+from src.validation.walk_forward import walk_forward_signals, walk_forward_ml_signals
 
 
 def run_pipeline_for_ticker(ticker: str, config: dict) -> dict:
@@ -141,6 +143,55 @@ def run_walkforward(config: dict) -> dict:
     results = {}
     for ticker in config["data"]["tickers"]:
         results[ticker] = run_walkforward_for_ticker(ticker, config)
+    return results
+
+def run_walkforward_ml_for_ticker(ticker: str, config: dict) -> dict:
+    """
+    Runs the ML walk-forward strategy for a single ticker: fits a fresh
+    logistic regression at each window and predicts on that window's test
+    rows, then backtests and evaluates the stitched out-of-sample record.
+    Same output shape as run_walkforward_for_ticker, so results are directly
+    comparable to the rule-based strategies.
+    """
+    data_cfg = config["data"]
+    feature_cfg = config["features"]
+    ml_cfg = config["ml"]
+    backtest_cfg = config["backtest"]
+    eval_cfg = config["evaluation"]
+    wf_cfg = config["walk_forward"]
+
+    raw = load_ticker(ticker, data_cfg["start_date"], data_cfg["end_date"])
+
+    signals = walk_forward_ml_signals(
+        raw, feature_cfg, ml_cfg["feature_columns"],
+        train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
+        threshold=ml_cfg.get("threshold", 0.05),
+    )
+
+    engine = BacktestEngine(
+        initial_capital=backtest_cfg["initial_capital"],
+        transaction_cost_bps=backtest_cfg["transaction_cost_bps"],
+        slippage_bps=backtest_cfg["slippage_bps"],
+        position_size_pct=backtest_cfg["position_size_pct"],
+    )
+    backtest_result = engine.run(signals)
+
+    per_window = walk_forward_evaluate(backtest_result, eval_cfg["metrics"], eval_cfg)
+    summary = summarize_windows(per_window)
+
+    return {
+        "ticker": ticker,
+        "backtest_result": backtest_result,
+        "per_window": per_window,
+        "summary": summary,
+    }
+
+
+def run_walkforward_ml(config: dict) -> dict:
+    """Runs the ML walk-forward strategy across every ticker in the config's universe."""
+    results = {}
+    for ticker in config["data"]["tickers"]:
+        results[ticker] = run_walkforward_ml_for_ticker(ticker, config)
     return results
 
 

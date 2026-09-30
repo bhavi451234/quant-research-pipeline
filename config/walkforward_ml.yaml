@@ -1,0 +1,72 @@
+# ML walk-forward configuration: logistic regression, retrained at each
+# window. Structurally different from the rule-based configs: no
+# `strategy:` section (there's no fixed rule), instead an `ml:` section
+# naming which computed feature columns the model should actually use.
+
+experiment_name: "logistic_regression_walkforward"
+
+data:
+  tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+
+# All 13 features get computed; `ml.feature_columns` below selects which
+# of the resulting columns the model actually trains on.
+features:
+  - name: price_to_sma
+    params: { window: 10 }
+  - name: price_to_sma
+    params: { window: 20 }
+  - name: price_to_sma
+    params: { window: 50 }
+  - name: price_to_ema
+    params: { span: 10 }
+  - name: price_to_ema
+    params: { span: 20 }
+  - name: price_to_ema
+    params: { span: 50 }
+  - name: rsi
+    params: { window: 14 }
+  - name: volatility
+    params: { window: 10 }
+  - name: volatility
+    params: { window: 20 }
+  - name: momentum
+    params: { window: 5 }
+  - name: momentum
+    params: { window: 10 }
+  - name: momentum
+    params: { window: 20 }
+  - name: bollinger_position
+    params: { window: 20, num_std: 2.0 }
+
+ml:
+  feature_columns:
+    - price_to_sma_window10
+    - price_to_sma_window20
+    - price_to_sma_window50
+    - price_to_ema_span10
+    - price_to_ema_span20
+    - price_to_ema_span50
+    - rsi_window14
+    - volatility_window10
+    - volatility_window20
+    - momentum_window5
+    - momentum_window10
+    - momentum_window20
+    - bollinger_position_window20_num_std2.0
+  threshold: 0.05   # trade only when predicted probability is >0.55 or <0.45
+
+walk_forward:
+  train_size: 504
+  test_size: 126
+
+backtest:
+  initial_capital: 100000
+  transaction_cost_bps: 5
+  slippage_bps: 2
+  position_size_pct: 1.0
+
+evaluation:
+  risk_free_rate_annual: 0.05
+  metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "cagr"]

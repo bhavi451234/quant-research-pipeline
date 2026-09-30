@@ -26,15 +26,16 @@ def _annualize_return(strategy_returns: pd.Series) -> float:
 
 def sharpe_ratio(strategy_returns: pd.Series, risk_free_rate_annual: float = 0.05) -> float:
     excess = strategy_returns - (risk_free_rate_annual / 252)
-    if excess.std() == 0 or excess.isna().all():
+    n_nonzero = (strategy_returns != 0).sum()
+    if excess.std() == 0 or excess.isna().all() or n_nonzero < 10:
         return np.nan
     return (excess.mean() / excess.std()) * np.sqrt(252)
-
 
 def sortino_ratio(strategy_returns: pd.Series, risk_free_rate_annual: float = 0.05) -> float:
     excess = strategy_returns - (risk_free_rate_annual / 252)
     downside = excess[excess < 0]
-    if downside.std() == 0 or downside.empty:
+    n_nonzero = (strategy_returns != 0).sum()
+    if downside.std() == 0 or downside.empty or n_nonzero < 10:
         return np.nan
     return (excess.mean() / downside.std()) * np.sqrt(252)
 
