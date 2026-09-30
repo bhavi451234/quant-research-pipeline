@@ -38,12 +38,12 @@ def fit_and_predict_logistic(train_featured: pd.DataFrame, test_featured: pd.Dat
         # rational prediction is that one class, with full confidence,
         # rather than trying to fit a classifier with nothing to separate.
         constant_probability = float(unique_classes[0])
-        return pd.Series(constant_probability, index=test_featured.index)
+        return pd.Series(constant_probability, index=test_featured.index), None
 
     model = LogisticRegression(C=0.5, max_iter=1000)
     model.fit(X_train, y_train)
 
     X_test = test_featured[feature_columns]
-    probabilities = model.predict_proba(X_test)[:, 1]
 
-    return pd.Series(probabilities, index=test_featured.index)
+    probabilities = model.predict_proba(X_test)[:, 1]
+    return pd.Series(probabilities, index=test_featured.index), model

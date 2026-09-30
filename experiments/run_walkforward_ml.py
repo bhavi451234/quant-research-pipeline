@@ -49,10 +49,14 @@ def main():
                 print(f"  {key}: {value:.4f}")
             else:
                 print(f"  {key}: {value}")
+
+        print("Mean coefficient per feature, across windows:")
+        print(result["coefficients"].mean().round(4).sort_values())
         print()
 
     print("Done. Each ticker's full stitched backtest DataFrame, per-window table,")
     print("and summary are available in the returned results dict.")
+   
 
     return results
 
