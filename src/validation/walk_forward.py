@@ -2,6 +2,7 @@ import pandas as pd
 
 from src.features.library import compute_features
 from src.strategies.library import compute_signal
+from src.validation.ml_signals import fit_and_predict_logistic
 
 
 def rolling_windows(total_length: int, train_size: int, test_size: int, step_size: int = None) -> list:
@@ -120,6 +121,73 @@ def walk_forward_signals(df: pd.DataFrame, feature_cfg: list, strategy_name: str
         piece = pd.DataFrame({
             "Close": featured.loc[test.index, "Close"],
             "signal": signal.loc[test.index],
+        })
+        piece["window"] = window_number
+        pieces.append(piece)
+
+    return pd.concat(pieces)
+
+
+def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns: list,
+                            train_size: int, test_size: int, step_size: int = None,
+                            threshold: float = 0.05) -> pd.DataFrame:
+    """
+    ML counterpart to walk_forward_signals. Instead of a fixed rule, fits a
+    fresh logistic regression on each window's train rows and predicts on
+    that window's test rows, so the model is retrained at every step rather
+    than fit once on the full history.
+
+    Args:
+        df: raw price table (no features yet), with a Close column.
+        feature_cfg: feature settings, as in a config's `features` section -
+            determines which columns compute_features will produce.
+        feature_columns: which of those produced columns the model should
+            actually use as inputs (a subset of what feature_cfg produces).
+        train_size, test_size, step_size: same meaning as walk_forward_signals.
+        threshold: how far from 0.5 the model's predicted probability must be
+            to trigger a signal. Long above 0.5+threshold, short below
+            0.5-threshold, flat in between.
+
+    Returns:
+        pd.DataFrame: test rows only, with Close, signal and window columns -
+        identical shape to walk_forward_signals's output.
+    """
+    if step_size is not None and step_size != test_size:
+        raise ValueError(
+            f"walk_forward_ml_signals needs step_size equal to test_size ({test_size}), got {step_size}. "
+            f"A smaller step would make test windows overlap, so one day would get several signals."
+        )
+
+    splits = walk_forward_splits(df, train_size, test_size)
+    if len(splits) == 0:
+        raise ValueError(
+            f"No complete window fits: {len(df)} rows is fewer than "
+            f"train_size + test_size = {train_size + test_size}."
+        )
+
+    pieces = []
+    for window_number, (train, test) in enumerate(splits):
+        window_df = pd.concat([train, test])
+        featured = compute_features(window_df, feature_cfg)
+
+        if featured.loc[test.index, feature_columns].isna().any().any():
+            raise ValueError(
+                f"Window {window_number}: some model features are still NaN on test rows. "
+                f"train_size={train_size} is shorter than the longest feature lookback."
+            )
+
+        train_featured = featured.loc[train.index]
+        test_featured = featured.loc[test.index]
+
+        probabilities = fit_and_predict_logistic(train_featured, test_featured, feature_columns)
+
+        signal = pd.Series(0, index=test.index)
+        signal[probabilities > 0.5 + threshold] = 1
+        signal[probabilities < 0.5 - threshold] = -1
+
+        piece = pd.DataFrame({
+            "Close": featured.loc[test.index, "Close"],
+            "signal": signal,
         })
         piece["window"] = window_number
         pieces.append(piece)

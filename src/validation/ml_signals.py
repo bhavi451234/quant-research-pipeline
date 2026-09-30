@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 
@@ -15,21 +15,30 @@ def make_next_day_direction_labels(df: pd.DataFrame) -> pd.Series:
     labels[next_close.isna()] = np.nan
     return labels
 
+
 def fit_and_predict_logistic(train_featured: pd.DataFrame, test_featured: pd.DataFrame,
                              feature_columns: list) -> pd.Series:
     """
     Fits a logistic regression on train_featured's features and labels,
     then predicts probabilities of "up" for every row of test_featured.
-
-    Both DataFrames must already have the feature columns computed. Rows
-    in train_featured with a NaN label (the last row, with no known next
-    day) are dropped before fitting.
     """
     labels = make_next_day_direction_labels(train_featured)
-    valid = labels.notna()
+
+    features_ready = train_featured[feature_columns].notna().all(axis=1)
+    valid = labels.notna() & features_ready
 
     X_train = train_featured.loc[valid, feature_columns]
     y_train = labels.loc[valid]
+
+    unique_classes = y_train.unique()
+    if len(unique_classes) < 2:
+        # Every labeled day in this window went the same direction (e.g. a
+        # strong, near-monotonic trend). There is no boundary to learn - the
+        # model has literally never seen the other outcome happen. The
+        # rational prediction is that one class, with full confidence,
+        # rather than trying to fit a classifier with nothing to separate.
+        constant_probability = float(unique_classes[0])
+        return pd.Series(constant_probability, index=test_featured.index)
 
     model = LogisticRegression(C=0.5, max_iter=1000)
     model.fit(X_train, y_train)
