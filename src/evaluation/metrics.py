@@ -101,6 +101,29 @@ def turnover(trades: pd.Series) -> float:
 def cagr(strategy_returns: pd.Series) -> float:
     return _annualize_return(strategy_returns)
 
+def total_return(backtest_result: pd.DataFrame) -> float:
+    """
+    Plain growth of the equity curve from this window's first day to its
+    last, already net of transaction costs and slippage (equity is built
+    from strategy_return, which the backtest engine already computed as
+    gross_pnl minus cost). Unlike cagr, this is NOT annualized - it's the
+    actual, undiluted P&L for this specific window.
+    """
+    equity = backtest_result["equity"]
+    if len(equity) == 0:
+        return np.nan
+    return equity.iloc[-1] / equity.iloc[0] - 1
+
+
+def direction_accuracy(backtest_result: pd.DataFrame) -> float:
+    daily_returns = backtest_result["Close"].pct_change()
+    active = backtest_result["position"] != 0
+    n_nonzero = active.sum()
+    if n_nonzero < 10:
+        return np.nan
+    correct = np.sign(backtest_result.loc[active, "position"]) == np.sign(daily_returns.loc[active])
+    return correct.mean()
+
 
 METRIC_REGISTRY = {
     "sharpe": lambda bt, cfg: sharpe_ratio(bt["strategy_return"], cfg.get("risk_free_rate_annual", 0.05)),
@@ -109,6 +132,8 @@ METRIC_REGISTRY = {
     "win_rate": lambda bt, cfg: win_rate(bt["strategy_return"], bt["position"]),
     "turnover": lambda bt, cfg: turnover(bt["trade"]),
     "cagr": lambda bt, cfg: cagr(bt["strategy_return"]),
+    "total_return": lambda bt, cfg: total_return(bt),
+    "direction_accuracy": lambda bt, cfg: direction_accuracy(bt),
 }
 
 

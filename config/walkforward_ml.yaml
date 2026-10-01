@@ -71,4 +71,4 @@ backtest:
 
 evaluation:
   risk_free_rate_annual: 0.05
-  metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "cagr"]
+  metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "cagr", "total_return", "direction_accuracy"]
