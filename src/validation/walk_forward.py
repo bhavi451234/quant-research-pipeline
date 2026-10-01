@@ -2,7 +2,7 @@ import pandas as pd
 
 from src.features.library import compute_features
 from src.strategies.library import compute_signal
-from src.validation.ml_signals import fit_and_predict_logistic
+from src.validation.ml_signals import fit_and_predict_logistic, fit_and_predict_gradient_boosting
 
 
 def rolling_windows(total_length: int, train_size: int, test_size: int, step_size: int = None) -> list:
@@ -130,12 +130,12 @@ def walk_forward_signals(df: pd.DataFrame, feature_cfg: list, strategy_name: str
 
 def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns: list,
                             train_size: int, test_size: int, step_size: int = None,
-                            threshold: float = 0.05) -> tuple:
+                            threshold: float = 0.05, model_type: str = "logistic") -> tuple:
     """
     ML counterpart to walk_forward_signals. Instead of a fixed rule, fits a
-    fresh logistic regression on each window's train rows and predicts on
-    that window's test rows, so the model is retrained at every step rather
-    than fit once on the full history.
+    fresh model on each window's train rows and predicts on that window's
+    test rows, so the model is retrained at every step rather than fit once
+    on the full history.
 
     Args:
         df: raw price table (no features yet), with a Close column.
@@ -147,20 +147,35 @@ def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns
         threshold: how far from 0.5 the model's predicted probability must be
             to trigger a signal. Long above 0.5+threshold, short below
             0.5-threshold, flat in between.
+        model_type: "logistic" (default) or "gradient_boosting". Picks which
+            fit_and_predict_* function runs inside each window.
 
     Returns:
-        tuple: (signals_df, coefficients_df)
+        tuple: (signals_df, feature_scores_df)
           signals_df: test rows only, with Close, signal and window columns -
             identical shape to walk_forward_signals's output.
-          coefficients_df: one row per window, one column per feature, holding
-            that window's fitted logistic regression weight for each feature
-            (NaN for any window that hit the single-class shortcut, since
-            there's no real fitted model to read a weight from there).
+          feature_scores_df: one row per window, one column per feature.
+            For model_type="logistic" these are SIGNED coefficients (positive
+            means the feature pushed the prediction toward "up"). For
+            model_type="gradient_boosting" these are UNSIGNED importances
+            (bigger means the feature mattered more, direction unknown).
+            The two are not directly comparable to each other numerically.
+            NaN for any window that hit the single-class shortcut, since
+            there's no real fitted model to score in that case.
     """
     if step_size is not None and step_size != test_size:
         raise ValueError(
             f"walk_forward_ml_signals needs step_size equal to test_size ({test_size}), got {step_size}. "
             f"A smaller step would make test windows overlap, so one day would get several signals."
+        )
+
+    if model_type == "logistic":
+        fit_and_predict = fit_and_predict_logistic
+    elif model_type == "gradient_boosting":
+        fit_and_predict = fit_and_predict_gradient_boosting
+    else:
+        raise ValueError(
+            f"Unknown model_type '{model_type}'. Available: 'logistic', 'gradient_boosting'."
         )
 
     splits = walk_forward_splits(df, train_size, test_size)
@@ -171,7 +186,7 @@ def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns
         )
 
     pieces = []
-    coefficient_rows = []
+    score_rows = []
 
     for window_number, (train, test) in enumerate(splits):
         window_df = pd.concat([train, test])
@@ -186,18 +201,20 @@ def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns
         train_featured = featured.loc[train.index]
         test_featured = featured.loc[test.index]
 
-        probabilities, model = fit_and_predict_logistic(train_featured, test_featured, feature_columns)
+        probabilities, model = fit_and_predict(train_featured, test_featured, feature_columns)
 
         signal = pd.Series(0, index=test.index)
         signal[probabilities > 0.5 + threshold] = 1
         signal[probabilities < 0.5 - threshold] = -1
 
-        if model is not None:
-            coefficients = dict(zip(feature_columns, model.coef_[0]))
+        if model is None:
+            scores = {name: float("nan") for name in feature_columns}
+        elif model_type == "logistic":
+            scores = dict(zip(feature_columns, model.coef_[0]))
         else:
-            coefficients = {name: float("nan") for name in feature_columns}
-        coefficients["window"] = window_number
-        coefficient_rows.append(coefficients)
+            scores = dict(zip(feature_columns, model.feature_importances_))
+        scores["window"] = window_number
+        score_rows.append(scores)
 
         piece = pd.DataFrame({
             "Close": featured.loc[test.index, "Close"],
@@ -207,6 +224,6 @@ def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns
         pieces.append(piece)
 
     signals_df = pd.concat(pieces)
-    coefficients_df = pd.DataFrame(coefficient_rows).set_index("window")
+    feature_scores_df = pd.DataFrame(score_rows).set_index("window")
 
-    return signals_df, coefficients_df
+    return signals_df, feature_scores_df

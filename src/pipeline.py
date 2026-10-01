@@ -162,10 +162,11 @@ def run_walkforward_ml_for_ticker(ticker: str, config: dict) -> dict:
 
     raw = load_ticker(ticker, data_cfg["start_date"], data_cfg["end_date"])
 
-    signals, coefficients = walk_forward_ml_signals(
+    signals, feature_scores = walk_forward_ml_signals(
         raw, feature_cfg, ml_cfg["feature_columns"],
         train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
         threshold=ml_cfg.get("threshold", 0.05),
+        model_type=ml_cfg.get("model_type", "logistic")
     )
 
     engine = BacktestEngine(
@@ -184,7 +185,7 @@ def run_walkforward_ml_for_ticker(ticker: str, config: dict) -> dict:
         "backtest_result": backtest_result,
         "per_window": per_window,
         "summary": summary,
-        "coefficients": coefficients
+        "coefficients": feature_scores,
     }
 
 

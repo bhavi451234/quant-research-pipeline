@@ -3,7 +3,7 @@
 # `strategy:` section (there's no fixed rule), instead an `ml:` section
 # naming which computed feature columns the model should actually use.
 
-experiment_name: "logistic_regression_walkforward"
+experiment_name: "gradient_boosting_walkforward"
 
 data:
   tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
@@ -56,7 +56,7 @@ ml:
     - momentum_window20
     - bollinger_position_window20_num_std2.0
   threshold: 0.05
-  model_type: "logistic"
+  model_type: "gradient_boosting"
   # trade only when predicted probability is >0.55 or <0.45
 
 walk_forward:
