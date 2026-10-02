@@ -15,7 +15,7 @@ import yaml
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from src.pipeline import run_portfolio_single_strategy
+from src.pipeline import run_portfolio_single_strategy, run_portfolio_best_per_ticker
 
 
 def load_config(path: str) -> dict:
@@ -34,7 +34,10 @@ def main():
     config = load_config(args.config)
     print(f"\n=== Portfolio run: {config['experiment_name']} ===\n")
 
-    result = run_portfolio_single_strategy(config)
+    if config["experiment_name"] == "portfolio_best_per_ticker":
+        result = run_portfolio_best_per_ticker(config)
+    else:
+        result = run_portfolio_single_strategy(config)
 
     print("Allocations:")
     for ticker, amount in config["portfolio"]["allocations"].items():

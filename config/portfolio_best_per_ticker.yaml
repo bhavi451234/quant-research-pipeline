@@ -1,0 +1,144 @@
+# Best strategy per ticker in the portfolio, each with its own rupee allocation. No
+# `tickers:` list needed under `data:` - the tickers are implicitly defined
+# by whatever keys appear under `portfolio.allocations` below.
+# ticker in the portfolio, each with its own rupee allocation. No
+# `tickers:` list needed under `data:` - the tickers are implicitly defined
+# by whatever keys appear under `portfolio.allocations` below.
+
+experiment_name: "portfolio_best_per_ticker"
+
+data:
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+
+features:
+  - name: price_to_sma
+    params: { window: 10 }
+  - name: price_to_sma
+    params: { window: 20 }
+  - name: price_to_sma
+    params: { window: 50 }
+  - name: price_to_ema
+    params: { span: 10 }
+  - name: price_to_ema
+    params: { span: 20 }
+  - name: price_to_ema
+    params: { span: 50 }
+  - name: rsi
+    params: { window: 14 }
+  - name: volatility
+    params: { window: 10 }
+  - name: volatility
+    params: { window: 20 }
+  - name: momentum
+    params: { window: 5 }
+  - name: momentum
+    params: { window: 10 }
+  - name: momentum
+    params: { window: 20 }
+  - name: bollinger_position
+    params: { window: 20, num_std: 2.0 }
+
+ml:
+  model_type: logistic
+  feature_columns:
+    - price_to_sma_window10
+    - price_to_sma_window20
+    - price_to_sma_window50
+    - price_to_ema_span10
+    - price_to_ema_span20
+    - price_to_ema_span50
+    - rsi_window14
+    - volatility_window10
+    - volatility_window20
+    - momentum_window5
+    - momentum_window10
+    - momentum_window20
+    - bollinger_position_window20_num_std2.0
+  threshold: 0.05
+
+walk_forward:
+  train_size: 504
+  test_size: 126
+
+backtest:
+  # No initial_capital here - each ticker's own allocation below is used
+  # as that ticker's initial_capital instead.
+  transaction_cost_bps: 5
+  slippage_bps: 2
+  position_size_pct: 1.0
+
+evaluation:
+  risk_free_rate_annual: 0.05
+  # Only metrics that work on a COMBINED portfolio equity curve - win_rate,
+  # turnover, and direction_accuracy need per-ticker position/trade/Close
+  # data that doesn't survive being summed across tickers, so they're left
+  # out here (still available per-ticker via result['ticker_backtests']).
+  metrics: ["sharpe", "sortino", "max_drawdown", "cagr", "total_return"]
+  per_ticker_metrics: ["sharpe", "sortino", "max_drawdown", "win_rate", "turnover", "direction_accuracy", "cagr", "total_return"]
+
+portfolio:
+  allocations:
+    AAPL: 100000
+    MSFT: 80000
+    TSLA: 50000
+    SNAP: 70000
+  per_ticker_strategy:
+    AAPL:
+      type: ml
+      model_type: logistic
+      feature_columns:
+        - price_to_sma_window10
+        - price_to_sma_window20
+        - price_to_sma_window50
+        - price_to_ema_span10
+        - price_to_ema_span20
+        - price_to_ema_span50
+        - rsi_window14
+        - volatility_window10
+        - volatility_window20
+        - momentum_window5
+        - momentum_window10
+        - momentum_window20
+        - bollinger_position_window20_num_std2.0
+      threshold: 0.05
+    MSFT:
+      type: ml
+      model_type: logistic
+      feature_columns:
+        - price_to_sma_window10
+        - price_to_sma_window20
+        - price_to_sma_window50
+        - price_to_ema_span10
+        - price_to_ema_span20
+        - price_to_ema_span50
+        - rsi_window14
+        - volatility_window10
+        - volatility_window20
+        - momentum_window5
+        - momentum_window10
+        - momentum_window20
+        - bollinger_position_window20_num_std2.0
+      threshold: 0.05
+    TSLA:
+      type: strategy
+      name: momentum_strategy
+      params: { momentum_window: 10, threshold: 0.02 }
+    SNAP:
+      type: ml
+      model_type: logistic
+      feature_columns:
+        - price_to_sma_window10
+        - price_to_sma_window20
+        - price_to_sma_window50
+        - price_to_ema_span10
+        - price_to_ema_span20
+        - price_to_ema_span50
+        - rsi_window14
+        - volatility_window10
+        - volatility_window20
+        - momentum_window5
+        - momentum_window10
+        - momentum_window20
+        - bollinger_position_window20_num_std2.0
+      threshold: 0.05

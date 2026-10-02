@@ -10,6 +10,7 @@ the strategy) without touching the others.
 
 import pandas as pd
 
+from src.backtest import engine
 from src.data.loader import load_ticker, train_test_split
 from src.features.library import compute_features
 from src.strategies.library import compute_signal
@@ -266,3 +267,79 @@ def run_portfolio_single_strategy(config: dict) -> dict:
         "summary": summary,
     }
 
+
+
+def run_portfolio_best_per_ticker(config: dict) -> dict:
+    """
+    Runs a DIFFERENT strategy per ticker (each ticker's own entry under
+    config['portfolio']['per_ticker_strategy'] says 'type: ml' or
+    'type: strategy' and the matching settings), each with its own
+    allocation, then combines their equity curves into one portfolio
+    result. Structurally identical to run_portfolio_single_strategy except
+    the strategy lookup happens per ticker instead of once for the whole
+    config.
+
+    NOTE: if each ticker's strategy was picked based on which one already
+    scored best in earlier results (as opposed to a decision made in
+    advance), this portfolio reflects hindsight selection and its
+    performance should be read as an upper bound, not a fair prospective
+    estimate - label it as such wherever it's reported.
+    """
+    data_cfg = config["data"]
+    feature_cfg = config["features"]
+    wf_cfg = config["walk_forward"]
+    backtest_cfg = config["backtest"]
+    eval_cfg = config["evaluation"]
+    allocations = config["portfolio"]["allocations"]
+    per_ticker_strategy = config["portfolio"]["per_ticker_strategy"]
+
+    ticker_backtests = {}
+
+    for ticker, allocation in allocations.items():
+        if ticker not in per_ticker_strategy:
+            raise ValueError(
+                f"'{ticker}' has an allocation but no entry under "
+                f"portfolio.per_ticker_strategy - every ticker needs one."
+            )
+        ticker_cfg = per_ticker_strategy[ticker]
+
+        raw = load_ticker(ticker, data_cfg["start_date"], data_cfg["end_date"])
+
+        if ticker_cfg["type"] == "strategy":
+            signals = walk_forward_signals(
+                raw, feature_cfg, ticker_cfg["name"], ticker_cfg["params"],
+                train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
+            )
+        elif ticker_cfg["type"] == "ml":
+            signals, _ = walk_forward_ml_signals(
+                raw, feature_cfg, ticker_cfg["feature_columns"],
+                train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
+                threshold=ticker_cfg.get("threshold", 0.05),
+                model_type=ticker_cfg.get("model_type", "logistic"),
+            )
+        else:
+            raise ValueError(
+                f"'{ticker}' has unknown type '{ticker_cfg['type']}' under "
+                f"per_ticker_strategy. Must be 'strategy' or 'ml'."
+            )
+
+
+        engine = BacktestEngine(
+            initial_capital=allocation,
+            transaction_cost_bps=backtest_cfg["transaction_cost_bps"],
+            slippage_bps=backtest_cfg["slippage_bps"],
+            position_size_pct=backtest_cfg["position_size_pct"],
+        )
+        ticker_backtests[ticker] = engine.run(signals)
+
+    portfolio_result = combine_portfolio_equity(ticker_backtests)
+
+    per_window = walk_forward_evaluate(portfolio_result, eval_cfg["metrics"], eval_cfg)
+    summary = summarize_windows(per_window)
+
+    return {
+        "ticker_backtests": ticker_backtests,
+        "portfolio_result": portfolio_result,
+        "per_window": per_window,
+        "summary": summary,
+    }
