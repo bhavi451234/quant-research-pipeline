@@ -18,6 +18,7 @@ from src.evaluation.metrics import evaluate, compare_train_test, walk_forward_ev
 from src.validation.walk_forward import walk_forward_signals
 from src.evaluation.metrics import evaluate, compare_train_test, walk_forward_evaluate, summarize_windows
 from src.validation.walk_forward import walk_forward_signals, walk_forward_ml_signals
+from src.validation.portfolio import  combine_portfolio_equity 
 
 
 def run_pipeline_for_ticker(ticker: str, config: dict) -> dict:
@@ -197,4 +198,71 @@ def run_walkforward_ml(config: dict) -> dict:
     return results
 
 
+
+
+def run_portfolio_single_strategy(config: dict) -> dict:
+    """
+    Runs one shared strategy across every ticker in the portfolio, each
+    with its own allocation (config['portfolio']['allocations']), then
+    combines their equity curves into one portfolio-level result.
+
+    The config may specify either a rule-based strategy (a `strategy:`
+    section) or an ML strategy (an `ml:` section) - whichever is present
+    decides which walk-forward function runs. Exactly one of the two must
+    be present.
+    """
+    data_cfg = config["data"]
+    feature_cfg = config["features"]
+    wf_cfg = config["walk_forward"]
+    backtest_cfg = config["backtest"]
+    eval_cfg = config["evaluation"]
+    allocations = config["portfolio"]["allocations"]
+
+    has_strategy = "strategy" in config
+    has_ml = "ml" in config
+    if has_strategy == has_ml:
+        raise ValueError(
+            "Portfolio config must have exactly one of 'strategy' or 'ml', "
+            f"got strategy={has_strategy}, ml={has_ml}."
+        )
+
+    ticker_backtests = {}
+
+    for ticker, allocation in allocations.items():
+        raw = load_ticker(ticker, data_cfg["start_date"], data_cfg["end_date"])
+
+        if has_strategy:
+            strategy_cfg = config["strategy"]
+            signals = walk_forward_signals(
+                raw, feature_cfg, strategy_cfg["name"], strategy_cfg["params"],
+                train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
+            )
+        else:
+            ml_cfg = config["ml"]
+            signals, _ = walk_forward_ml_signals(
+                raw, feature_cfg, ml_cfg["feature_columns"],
+                train_size=wf_cfg["train_size"], test_size=wf_cfg["test_size"],
+                threshold=ml_cfg.get("threshold", 0.05),
+                model_type=ml_cfg.get("model_type", "logistic"),
+            )
+
+        engine = BacktestEngine(
+            initial_capital=allocation,
+            transaction_cost_bps=backtest_cfg["transaction_cost_bps"],
+            slippage_bps=backtest_cfg["slippage_bps"],
+            position_size_pct=backtest_cfg["position_size_pct"],
+        )
+        ticker_backtests[ticker] = engine.run(signals)
+
+    portfolio_result = combine_portfolio_equity(ticker_backtests)
+
+    per_window = walk_forward_evaluate(portfolio_result, eval_cfg["metrics"], eval_cfg)
+    summary = summarize_windows(per_window)
+
+    return {
+        "ticker_backtests": ticker_backtests,
+        "portfolio_result": portfolio_result,
+        "per_window": per_window,
+        "summary": summary,
+    }
 
