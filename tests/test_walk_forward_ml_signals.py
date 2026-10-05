@@ -35,25 +35,28 @@ def make_predictable_prices(n=700, seed=0):
 def test_output_shape_and_coverage():
     df = make_random_prices()
     n_windows = len(rolling_windows(len(df), 200, 100))
-    result = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, train_size=200, test_size=100)
+    result, scores = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, train_size=200, test_size=100)
 
     assert len(result) == n_windows * 100
     assert list(result.index) == list(df.index[200:200 + n_windows * 100])
     assert result["window"].tolist() == [w for w in range(n_windows) for _ in range(100)]
     assert set(result["signal"].unique()) <= {-1, 0, 1}
 
+    assert list(scores.index) == list(range(n_windows))
+    assert list(scores.columns) == FEATURE_COLUMNS
+
 
 def test_future_data_does_not_change_past_signals():
     df = make_random_prices()
-    full = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, 200, 100)
-    short = walk_forward_ml_signals(df.iloc[:500], FEATURE_CFG, FEATURE_COLUMNS, 200, 100)
+    full, _ = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, 200, 100)
+    short, _ = walk_forward_ml_signals(df.iloc[:500], FEATURE_CFG, FEATURE_COLUMNS, 200, 100)
 
     pd.testing.assert_series_equal(full.loc[short.index, "signal"], short["signal"], check_freq=False)
 
 
 def test_model_does_better_than_random_on_learnable_data():
     df = make_predictable_prices()
-    result = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, train_size=200, test_size=100)
+    result, _ = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, train_size=200, test_size=100)
 
     from src.validation.ml_signals import make_next_day_direction_labels
     from src.features.library import compute_features
@@ -99,8 +102,8 @@ def test_data_too_short_for_one_window_is_rejected():
 
 def test_threshold_reduces_trading():
     df = make_random_prices()
-    loose = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, 200, 100, threshold=0.0)
-    strict = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, 200, 100, threshold=0.2)
+    loose, _ = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, 200, 100, threshold=0.0)
+    strict, _ = walk_forward_ml_signals(df, FEATURE_CFG, FEATURE_COLUMNS, 200, 100, threshold=0.2)
 
     loose_trades = (loose["signal"] != 0).sum()
     strict_trades = (strict["signal"] != 0).sum()

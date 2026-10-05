@@ -50,7 +50,7 @@ def test_model_beats_random_on_learnable_data():
     train_featured = featured.iloc[:split]
     test_featured = featured.iloc[split:]
 
-    probabilities = fit_and_predict_logistic(train_featured, test_featured, feature_columns)
+    probabilities, _ = fit_and_predict_logistic(train_featured, test_featured, feature_columns)
     predicted_direction = (probabilities > 0.5).astype(float)
 
     actual_labels = make_next_day_direction_labels(test_featured)
@@ -71,7 +71,7 @@ def test_predictions_are_valid_probabilities():
     train_featured = featured.iloc[:200]
     test_featured = featured.iloc[200:]
 
-    probabilities = fit_and_predict_logistic(train_featured, test_featured, feature_columns)
+    probabilities, _ = fit_and_predict_logistic(train_featured, test_featured, feature_columns)
 
     assert (probabilities >= 0).all() and (probabilities <= 1).all()
     assert list(probabilities.index) == list(test_featured.index)
