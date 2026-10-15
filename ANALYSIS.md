@@ -148,6 +148,7 @@ and MSFT (1.18 vs 1.47), while gradient boosting had the lower figure on
 TSLA (0.99 vs 1.21) and SNAP (1.22 vs 1.34), though with a mean Sharpe at
 or below zero on both. After costs the gap widens further, because
 gradient boosting trades more than four times as often (Section 8).
+None of these Sharpe gaps is statistically significant at nine windows (Section 10); the case against gradient boosting rests on its costs (Section 8), not on its raw Sharpe.
 
 **A reproducibility finding emerged during this comparison**: re-running
 the identical gradient boosting configuration twice in a row produced
@@ -272,6 +273,8 @@ means still positive at the highest cost tested.)
   Sharpe even at zero cost, so costs are not their problem; the signals
   do not work on these four stocks over this period.
 
+Section 10 tests these gaps for statistical significance.
+
 **Limitations.** Costs are modelled as a flat per-trade charge, with no
 market impact or size dependence. With four tickers, the gaps between the
 top strategies at low costs are small relative to window-to-window
@@ -283,3 +286,54 @@ that. At 0 bps the RSI row is lower than at 5 bps, which should be
 impossible since costs can only reduce returns; this appears to be an
 artifact of the Sharpe minimum-sample rule at exactly zero cost, not a
 real effect.
+
+## 10. Statistical significance (Phase 9)
+
+Every comparison so far rests on the mean of nine window-level Sharpe
+ratios, which vary a lot from window to window. This section asks which gaps
+are distinguishable from noise, using a paired bootstrap over the nine
+windows: for each pair of strategies, the nine per-window differences are
+resampled with replacement 10,000 times, and the middle 95% of the resampled
+means forms a confidence interval. A gap is called significant only if that
+interval excludes zero. "Pooled" averages the four stocks within each window
+first, so each strategy contributes nine values.
+
+**Strategy minus buy-and-hold (pooled across AAPL, MSFT, TSLA, SNAP)**
+
+| Strategy | Sharpe difference [95% interval] | Max drawdown difference [95% interval] |
+|---|---|---|
+| Logistic regression | -0.44 [-1.29, +0.35] | +0.14 [+0.10, +0.19] * |
+| EMA crossover | -0.60 [-0.90, -0.29] * | +0.09 [+0.02, +0.17] * |
+| SMA crossover | -0.65 [-1.02, -0.29] * | +0.09 [+0.03, +0.16] * |
+| Momentum | -0.73 [-1.32, -0.12] * | +0.00 [-0.03, +0.04] |
+| Gradient boosting | -0.88 [-1.69, -0.14] * | +0.07 [+0.03, +0.11] * |
+| RSI reversion | -1.12 [-2.21, +0.25] | +0.17 [+0.10, +0.25] * |
+| Bollinger reversion | -1.46 [-2.41, -0.42] * | +0.20 [+0.14, +0.28] * |
+
+(* = interval excludes zero. For drawdown a positive difference means a
+shallower worst drop than holding the stock.)
+
+**Findings.**
+
+- On risk-adjusted return, five of the seven strategies are significantly
+  worse than buying and holding. Logistic regression and RSI are inconclusive.
+  Logistic regression is not significantly worse, but it is not better either.
+- On max drawdown the strategies do better: logistic regression has a
+  significantly shallower worst drop than buy-and-hold on all four stocks.
+  Part of this is lower market exposure, since the strategies are often flat.
+- Logistic regression versus gradient boosting is not significant on any
+  stock (pooled +0.44, interval [-0.35, +1.16]); the case against gradient
+  boosting rests on its transaction costs (Section 8), not on its Sharpe.
+- Logistic regression versus the best rule-based strategy on each stock is
+  inconclusive everywhere.
+- Almost no strategy's mean Sharpe is distinguishable from zero. The one
+  exception is logistic regression on AAPL (+0.64, [+0.14, +1.19]); even
+  buy-and-hold on AAPL is not significant (+0.96, [-0.04, +2.02]).
+
+**Limitations.** Nine windows give low power, so wide intervals are expected
+and "inconclusive" means "cannot tell", not "equal". Dozens of comparisons
+were run, so a few starred results are expected by chance. Windows are not
+fully independent, since market regimes persist. The best rule-based
+strategy per stock was chosen after the fact, which makes that comparison
+conservative for logistic regression. Gradient boosting figures vary slightly
+between runs (Section 4).

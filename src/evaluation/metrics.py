@@ -259,3 +259,47 @@ def alpha_beta(strategy_returns: pd.Series, benchmark_returns: pd.Series,
     alpha_daily = y.mean() - beta * x.mean()
 
     return {"alpha_annual": alpha_daily * 252, "beta": beta, "n_obs": len(df)}
+
+
+def paired_bootstrap_difference(a, b, n_boot: int = 10000, seed: int = 0, ci: float = 0.95) -> dict:
+    """
+    Paired bootstrap test of whether A beats B.
+
+    a, b: one value per window for strategy A and strategy B (same windows,
+    same order). The test looks at the per-window differences a - b,
+    resamples them with replacement n_boot times, and reports the real mean
+    difference, a confidence interval around it, and a two-sided p-value.
+    """
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+
+    usable = ~(np.isnan(a) | np.isnan(b))
+    diffs = a[usable] - b[usable]
+    n = len(diffs)
+
+    if n < 3:
+        return {"mean_diff": np.nan, "ci_low": np.nan, "ci_high": np.nan,
+                "p_value": np.nan, "n_windows": n}
+
+    rng = np.random.default_rng(seed)
+    samples = rng.choice(diffs, size=(n_boot, n), replace=True)
+    boot_means = samples.mean(axis=1)
+
+    tail = (1 - ci) / 2
+    ci_low, ci_high = np.percentile(boot_means, [100 * tail, 100 * (1 - tail)])
+
+    p_not_positive = (boot_means <= 0).mean()
+    p_not_negative = (boot_means >= 0).mean()
+    p_value = min(1.0, 2 * min(p_not_positive, p_not_negative))
+
+    return {"mean_diff": diffs.mean(), "ci_low": ci_low, "ci_high": ci_high,
+            "p_value": p_value, "n_windows": n}
+
+
+def bootstrap_mean_ci(values, n_boot: int = 10000, seed: int = 0, ci: float = 0.95) -> dict:
+    """
+    Same test applied to a single strategy: is its mean value (e.g. mean
+    Sharpe across windows) distinguishable from zero?
+    """
+    values = np.asarray(values, dtype=float)
+    return paired_bootstrap_difference(values, np.zeros_like(values), n_boot, seed, ci)

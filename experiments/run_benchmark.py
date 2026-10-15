@@ -11,6 +11,7 @@ against SPY.
 """
 
 import argparse
+from curses import window
 import sys
 from pathlib import Path
 
@@ -63,6 +64,13 @@ def mean_sharpe(backtest: pd.DataFrame, eval_cfg: dict) -> float:
     per_window = walk_forward_evaluate(backtest, ["sharpe"], eval_cfg)
     return summarize_windows(per_window)["mean_sharpe"]
 
+def record_windows(rows: list, strategy: str, ticker: str, backtest: pd.DataFrame, eval_cfg: dict) -> None:
+    """Append one row per window with that window's Sharpe, max drawdown and total return."""
+    metrics = walk_forward_evaluate(backtest, ["sharpe", "max_drawdown", "total_return"], eval_cfg)
+    for window, row in metrics.iterrows():
+        rows.append({"strategy": strategy, "ticker": ticker, "window": window,
+                     "sharpe": row["sharpe"], "max_drawdown": row["max_drawdown"],
+                     "total_return": row["total_return"]})
 
 def main():
     parser = argparse.ArgumentParser(description="Compare strategies against SPY and buy-and-hold.")
@@ -83,6 +91,8 @@ def main():
     print(f"\nSPY buy-and-hold, mean Sharpe across windows: {spy_sharpe:.3f}\n")
 
     rows = []
+    window_rows = []
+    record_windows(window_rows, "buy_and_hold", "SPY", spy_bt, eval_cfg)
 
     # Sanity row: SPY against itself must give beta ~1 and alpha ~0.
     ab = alpha_beta(spy_bt["strategy_return"], spy_returns, rf)
@@ -94,6 +104,7 @@ def main():
     for ticker in tickers:
         bt = buy_and_hold_backtest(ticker, base)
         own_sharpe[ticker] = mean_sharpe(bt, eval_cfg)
+        record_windows(window_rows, "buy_and_hold", ticker, bt, eval_cfg)
         ab = alpha_beta(bt["strategy_return"], spy_returns, rf)
         rows.append({"strategy": "buy_and_hold", "ticker": ticker,
                      "mean_sharpe": own_sharpe[ticker],
@@ -104,6 +115,7 @@ def main():
         name = cfg["experiment_name"]
         results = run_walkforward_ml(cfg) if "ml" in cfg else run_walkforward(cfg)
         for ticker, res in results.items():
+            record_windows(window_rows, name, ticker, res["backtest_result"], eval_cfg)
             ab = alpha_beta(res["backtest_result"]["strategy_return"], spy_returns, rf)
             rows.append({"strategy": name, "ticker": ticker,
                          "mean_sharpe": res["summary"]["mean_sharpe"],
@@ -126,6 +138,10 @@ def main():
     print((df.pivot(index="strategy", columns="ticker", values="alpha_annual") * 100).round(1))
     print("\n=== Beta vs SPY ===")
     print(df.pivot(index="strategy", columns="ticker", values="beta").round(2))
+
+    # Save window-level results
+    window_df = pd.DataFrame(window_rows)
+    window_df.to_csv(args.out.replace(".csv", "_windows.csv"), index=False)
 
     df.to_csv(args.out, index=False)
     print(f"\nFull results saved to {args.out}")
