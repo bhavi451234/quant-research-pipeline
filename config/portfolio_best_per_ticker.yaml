@@ -123,7 +123,7 @@ portfolio:
     TSLA:
       type: strategy
       name: momentum_strategy
-      params: { momentum_window: 10, threshold: 0.02 }
+      params: { momentum_window: 20, threshold: 0.02 }
     SNAP:
       type: ml
       model_type: logistic

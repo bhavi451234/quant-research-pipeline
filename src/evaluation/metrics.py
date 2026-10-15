@@ -210,3 +210,52 @@ def summarize_windows(per_window: pd.DataFrame, metric: str ="sharpe") -> dict:
         f"pct_positive_{metric}_windows": pct_positive,
         "worst_window": worst_window,
     }
+
+def overall_total_return(backtest_result: pd.DataFrame) -> float:
+    """
+    The actual, full-period return: first day's equity to last day's
+    equity, across ALL stitched windows together. Different from the
+    per-window total_return already in METRIC_REGISTRY (which only looks
+    at one window at a time) - this is "would this strategy have actually
+    made me money, start to finish." Not registered in METRIC_REGISTRY
+    since it needs the full backtest_result directly, not a per-window
+    slice.
+    """
+    equity = backtest_result["equity"]
+    if len(equity) == 0:
+        return float("nan")
+    return equity.iloc[-1] / equity.iloc[0] - 1
+
+def alpha_beta(strategy_returns: pd.Series, benchmark_returns: pd.Series,
+               risk_free_rate_annual: float = 0.05) -> dict:
+    """
+    Regress a strategy's daily excess returns on a benchmark's daily excess
+    returns (both minus the daily risk-free rate).
+
+    beta  = how much of the strategy's movement is just the market's movement
+            (1.0 moves with the market, 0 is unrelated, negative moves against it).
+    alpha = what is left after removing that, annualized (daily intercept x 252,
+            a simple arithmetic annualization). Positive alpha means the
+            strategy earned more than its market exposure alone would explain.
+
+    Returns NaN for both if fewer than 30 overlapping days exist.
+    """
+    df = pd.concat(
+        [strategy_returns.rename("s"), benchmark_returns.rename("b")],
+        axis=1, join="inner",
+    ).dropna()
+
+    if len(df) < 30:
+        return {"alpha_annual": np.nan, "beta": np.nan, "n_obs": len(df)}
+
+    rf_daily = risk_free_rate_annual / 252
+    y = df["s"] - rf_daily
+    x = df["b"] - rf_daily
+
+    if x.var(ddof=1) == 0:
+        return {"alpha_annual": np.nan, "beta": np.nan, "n_obs": len(df)}
+
+    beta = np.cov(x, y, ddof=1)[0, 1] / x.var(ddof=1)
+    alpha_daily = y.mean() - beta * x.mean()
+
+    return {"alpha_annual": alpha_daily * 252, "beta": beta, "n_obs": len(df)}

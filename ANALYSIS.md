@@ -23,7 +23,7 @@ more erratic name (SNAP).
 
 ## 2. Bugs found and fixed along the way
 
-Three real bugs were discovered during development, each is worth noting
+Four real bugs were discovered during development. Each is worth noting
 because each would have silently produced misleading results if left
 unfixed:
 
@@ -44,20 +44,32 @@ unfixed:
   mislabeled the last, unknowable row of training data as "down" instead
   of leaving it correctly unlabeled. Fixed with an explicit `.isna()`
   check.
+- **Transaction costs were charged at a fraction of their true size.** The
+  backtest engine computed cost as `|trade| × share price × bps`, but
+  `trade` is a fraction of capital, so cost must scale with capital, not
+  with share price. For a $200 stock with $100,000 of capital the charge
+  was about 500× too small (and far more for lower-priced stocks like
+  SNAP), so every result in earlier versions of this document was
+  effectively cost-free. Fixed by charging cost on traded capital, and
+  pinned with regression tests: a round trip costs exactly two trades'
+  worth of basis points, a long-to-short flip costs double, and cost does
+  not depend on share price. All results below were regenerated after the
+  fix.
 
 ## 3. Rule-based strategies (Phase 3a)
 
 Five strategies (SMA crossover, EMA crossover, momentum, RSI mean
 reversion, Bollinger reversion) were walk-forward tested across all four
-tickers. Mean Sharpe per strategy per ticker:
+tickers. Mean Sharpe per strategy per ticker, after transaction costs
+(7 bps: 5 bps transaction cost plus 2 bps slippage):
 
 | Strategy | AAPL | MSFT | TSLA | SNAP |
 |---|---|---|---|---|
-| SMA crossover | 0.38 | 0.07 | 0.30 | 0.30 |
-| EMA crossover | 0.46 | 0.27 | 0.31 | 0.62 |
-| Momentum | 0.63 | -0.52 | 0.85 | -0.07 |
-| RSI reversion | -0.05 | 0.13 | -0.70 | -0.12 |
-| Bollinger reversion | -0.62 | 0.11 | -1.34 | 0.20 |
+| SMA crossover | 0.36 | 0.05 | 0.29 | 0.49 |
+| EMA crossover | 0.45 | 0.25 | 0.30 | 0.61 |
+| Momentum | 0.53 | -0.67 | 0.80 | -0.13 |
+| RSI reversion | -0.30 | -0.08 | -0.74 | -0.58 |
+| Bollinger reversion | -0.90 | -0.15 | -1.43 | 0.10 |
 
 **Key finding: no single strategy dominates.** Momentum is TSLA's clear
 best performer but is actively harmful on MSFT and SNAP. Bollinger
@@ -66,9 +78,11 @@ AAPL and TSLA specifically, both tickers that trended strongly over the
 test period, a sensible result: mean-reversion strategies lose money when
 the underlying assumption (reversion) doesn't hold.
 
-Standard deviation of Sharpe across windows was, in every case, larger
-than the mean Sharpe itself, meaning performance swung between strongly
-positive and strongly negative windows depending on market regime. This
+The standard deviation of Sharpe across windows exceeded the absolute mean
+Sharpe in 19 of 20 strategy-ticker combinations, meaning performance
+swung between strongly positive and strongly negative windows depending on
+market regime. The one exception is Bollinger reversion on TSLA (mean
+-1.43, std 1.21), which lost money consistently rather than swinging. This
 is the clearest evidence in the project that a single backtest number is
 not sufficient: consistency across time matters as much as average
 performance.
@@ -80,17 +94,19 @@ using 13 engineered features (price-relative-to-moving-average, RSI,
 volatility, momentum at multiple horizons, Bollinger band position), was
 compared against the five rule-based strategies.
 
-| Ticker | Best rule-based (mean Sharpe) | Logistic regression (mean Sharpe) |
+| Ticker | Best rule-based (mean Sharpe, after costs) | Logistic regression (mean Sharpe, after costs) |
 |---|---|---|
-| AAPL | 0.63 (momentum) | **0.74** |
-| MSFT | 0.27 (EMA) | **0.35** |
-| TSLA | 0.85 (momentum) | 0.13 |
-| SNAP | 0.62 (EMA) | **0.79** |
+| AAPL | 0.53 (momentum) | **0.66** |
+| MSFT | 0.25 (EMA) | **0.28** |
+| TSLA | 0.80 (momentum) | 0.07 |
+| SNAP | 0.61 (EMA) | **0.74** |
 
-Logistic regression outperformed every rule-based strategy on AAPL, MSFT,
-and SNAP, and was also the most *consistent* on AAPL specifically (std
-Sharpe 0.77, versus 0.79-1.92 for every rule-based strategy on that
-ticker).
+Logistic regression outperformed every rule-based strategy on AAPL and
+SNAP, and narrowly on MSFT (0.28 vs 0.25). On AAPL it was also the most
+consistent of the strategies with a positive mean Sharpe (std 0.81,
+versus 1.01 for momentum and 1.90-1.91 for EMA and SMA). Only RSI
+reversion had a lower std on that ticker (0.78), but with a negative mean
+Sharpe (-0.30).
 
 ### The accuracy-versus-profitability finding
 
@@ -110,6 +126,7 @@ more honest explanation than "the model is good at predicting direction."
 
 Per-window logistic regression coefficients revealed two patterns
 consistent with documented market phenomena:
+
 - **Volatility aversion** (negative weight on recent volatility,
   predicting down-moves after volatility spikes) was the dominant signal
   on AAPL and MSFT.
@@ -123,8 +140,14 @@ and volatility features were already included.
 ### Gradient boosting comparison
 
 A second model type, gradient boosted trees, was built and compared under
-identical conditions. Logistic regression won decisively on 3 of 4
-tickers, both on mean Sharpe and on consistency; TSLA was a near-tie.
+identical conditions. Logistic regression had the higher mean Sharpe on
+all four tickers (decisively on AAPL, MSFT and SNAP; narrowly on TSLA,
+0.07 vs -0.02). On consistency the picture is mixed: logistic regression
+had the lower window-to-window standard deviation on AAPL (0.81 vs 1.36)
+and MSFT (1.18 vs 1.47), while gradient boosting had the lower figure on
+TSLA (0.99 vs 1.21) and SNAP (1.22 vs 1.34), though with a mean Sharpe at
+or below zero on both. After costs the gap widens further, because
+gradient boosting trades more than four times as often (Section 8).
 
 **A reproducibility finding emerged during this comparison**: re-running
 the identical gradient boosting configuration twice in a row produced
@@ -136,6 +159,10 @@ summation order. Logistic regression showed no such variation. This adds
 a second, independent reason to prefer the simpler model: it is not only
 more accurate on average, it is also fully reproducible.
 
+The same nondeterminism appeared again after the cost fix: the identical
+gradient boosting configuration scored 0.35 on AAPL in the cost sweep and
+0.25 in a separate rerun.
+
 ## 5. Portfolio-level backtesting (Phase 4)
 
 Individual-ticker results were combined into a single portfolio, with
@@ -145,8 +172,12 @@ across different assets, only money does).
 
 | Portfolio | Mean Sharpe | Std Sharpe | % Positive Windows |
 |---|---|---|---|
-| Single strategy (logistic, all 4 tickers) | 0.73 | 1.38 | 67% |
-| Best strategy per ticker (logistic ×3, momentum for TSLA) | 0.86 | 0.90 | 78% |
+| Single strategy (logistic, all 4 tickers) | 0.64 | 1.37 | 67% |
+| Best strategy per ticker (logistic ×3, momentum for TSLA) | 0.78 | 1.46 | 67% |
+
+After the cost fix both portfolios are lower than in earlier versions
+(0.64 and 0.75, down from 0.73 and 0.86), as expected once costs are
+charged properly.
 
 The best-per-ticker portfolio outperforms on every axis, but this
 comparison carries an important caveat: each ticker's strategy was
@@ -181,3 +212,74 @@ accurate one, that model complexity (gradient boosting) can underperform
 a simpler, more stable alternative (logistic regression) both on average
 performance and on reproducibility, and that portfolio-level comparisons
 require explicit honesty about hindsight bias to be trustworthy.
+
+Costs added a further lesson. Sensitivity to transaction costs is driven
+by turnover: slow crossover strategies and logistic regression survive
+realistic costs, while gradient boosting, which trades over four times as
+often as logistic regression, does not. The mean-reversion strategies
+(RSI, Bollinger) fail even at zero cost, so no cost assumption rescues
+them. Finding that the original cost model undercharged by a factor of
+hundreds is itself a reminder to test the plumbing, not just the
+strategies.
+
+## 8. Transaction-cost sensitivity (Phase 12)
+
+Because earlier versions undercharged costs (Section 2), this section
+measures how much costs actually matter. For each strategy and ticker, the
+out-of-sample signals were generated once, then the same signals were
+re-backtested at total one-way costs of 0, 5, 7, 10 and 20 basis points (7
+is the project default: 5 bps transaction cost plus 2 bps slippage). A
+round trip costs twice the one-way figure.
+
+**Mean Sharpe vs total one-way cost (average over AAPL, MSFT, TSLA, SNAP)**
+
+| Strategy | 0 bps | 5 bps | 7 bps | 10 bps | 20 bps |
+|---|---|---|---|---|---|
+| Logistic regression | 0.515 | 0.457 | 0.437 | 0.409 | 0.313 |
+| EMA crossover | 0.413 | 0.404 | 0.401 | 0.395 | 0.378 |
+| SMA crossover | 0.312 | 0.302 | 0.297 | 0.291 | 0.270 |
+| Momentum | 0.223 | 0.159 | 0.133 | 0.094 | -0.035 |
+| Gradient boosting | 0.254 | 0.080 | 0.011 | -0.093 | -0.438 |
+| RSI reversion | -0.581 | -0.387 | -0.423 | -0.478 | -0.661 |
+| Bollinger reversion | -0.385 | -0.541 | -0.593 | -0.671 | -0.926 |
+
+**Breakeven cost (bps at which mean Sharpe reaches zero) and turnover**
+
+| Strategy | All (avg) | AAPL | MSFT | SNAP | TSLA | Mean turnover |
+|---|---|---|---|---|---|---|
+| Logistic regression | >20 | >20 | >20 | >20 | 16.1 | 0.094 |
+| EMA crossover | >20 | >20 | >20 | >20 | >20 | 0.017 |
+| SMA crossover | >20 | >20 | >20 | >20 | >20 | 0.022 |
+| Momentum | 17.3 | >20 | never | never | >20 | 0.180 |
+| Gradient boosting | 7.3 | 14.8 | 2.7 | 3.3 | 6.1 | 0.427 |
+| RSI reversion | never | never | never | never | never | 0.073 |
+| Bollinger reversion | never | never | 3.7 | 14.2 | never | 0.118 |
+
+("never" means Sharpe is already at or below zero with no costs; ">20"
+means still positive at the highest cost tested.)
+
+**Findings.**
+
+- Cost damage scales with turnover. Gradient boosting trades the most
+  (turnover 0.427) and loses almost all its Sharpe by the 7 bps default;
+  the crossover strategies trade rarely and barely notice costs.
+- Logistic regression remains the best strategy up to about 10 bps, but
+  EMA crossover overtakes it at 20 bps (0.378 vs 0.313).
+- Gradient boosting is not viable at realistic costs: its breakeven is
+  about 7 bps overall and under 4 bps on MSFT and SNAP. This widens the
+  logistic-vs-gradient-boosting gap found in Section 4.
+- The two mean-reversion strategies (RSI, Bollinger) have negative
+  Sharpe even at zero cost, so costs are not their problem; the signals
+  do not work on these four stocks over this period.
+
+**Limitations.** Costs are modelled as a flat per-trade charge, with no
+market impact or size dependence. With four tickers, the gaps between the
+top strategies at low costs are small relative to window-to-window
+variation, and no significance test has been run yet. Gradient boosting
+results vary by about 0.1 in Sharpe on AAPL between identical runs
+(Section 4), so its figures here should be read as approximate; the
+conclusion that it does not survive realistic costs is not sensitive to
+that. At 0 bps the RSI row is lower than at 5 bps, which should be
+impossible since costs can only reduce returns; this appears to be an
+artifact of the Sharpe minimum-sample rule at exactly zero cost, not a
+real effect.

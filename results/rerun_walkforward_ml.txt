@@ -1,0 +1,149 @@
+
+=== ML walk-forward run: logistic_regression_walkforward ===
+
+--- AAPL ---
+        sharpe  sortino  max_drawdown  ...    cagr  total_return  direction_accuracy
+window                                 ...                                          
+0       0.9825   1.2208       -0.3163  ...  0.5029        0.2259              0.5470
+1       1.7756   2.7548       -0.1673  ...  0.6777        0.2615              0.5323
+2       0.0909   0.1298       -0.1511  ...  0.0453        0.0483              0.5106
+3       1.8564   2.7192       -0.1120  ...  0.4899        0.2029              0.5545
+4       0.3901   0.5764       -0.1411  ...  0.1303        0.0372              0.5111
+5       0.0662   0.0943       -0.0766  ...  0.0490        0.0145              0.5135
+6          NaN      NaN       -0.0106  ...  0.0705        0.0241                 NaN
+7       0.4625   0.6089       -0.0765  ...  0.1010        0.0493              0.6226
+8      -0.3415  -0.5558       -0.1329  ... -0.0397       -0.0154              0.4316
+
+[9 rows x 8 columns]
+
+Summary across windows:
+  mean_sharpe: 0.6603
+  std_sharpe: 0.8081
+  pct_positive_sharpe_windows: 0.7778
+  worst_window: 8
+Mean coefficient per feature, across windows:
+volatility_window10                      -0.2726
+volatility_window20                      -0.1749
+price_to_ema_span50                      -0.0996
+price_to_sma_window10                    -0.0928
+price_to_ema_span10                      -0.0915
+momentum_window10                        -0.0668
+price_to_ema_span20                      -0.0620
+momentum_window5                         -0.0602
+price_to_sma_window20                    -0.0416
+price_to_sma_window50                    -0.0300
+momentum_window20                        -0.0161
+rsi_window14                             -0.0111
+bollinger_position_window20_num_std2.0    0.2862
+dtype: float64
+
+--- MSFT ---
+        sharpe  sortino  max_drawdown  ...    cagr  total_return  direction_accuracy
+window                                 ...                                          
+0      -0.7378  -0.9475       -0.2488  ... -0.2803       -0.1517              0.5741
+1       1.1789   1.6094       -0.0878  ...  0.3976        0.1822              0.5686
+2       1.2581   1.9702       -0.0877  ...  0.3374        0.1816              0.5047
+3       1.6240   2.3889       -0.0763  ...  0.3958        0.1823              0.5281
+4      -1.2924  -2.0940       -0.2731  ... -0.3724       -0.2041              0.4880
+5       0.6858   1.4106       -0.0908  ...  0.1617        0.0642              0.4062
+6          NaN      NaN        0.0000  ...  0.0000        0.0000                 NaN
+7          NaN      NaN       -0.0007  ...  0.0218        0.0109                 NaN
+8      -0.7832  -0.9612       -0.0335  ... -0.0079       -0.0039                 NaN
+
+[9 rows x 8 columns]
+
+Summary across windows:
+  mean_sharpe: 0.2762
+  std_sharpe: 1.1814
+  pct_positive_sharpe_windows: 0.4444
+  worst_window: 4
+Mean coefficient per feature, across windows:
+volatility_window10                      -0.3164
+volatility_window20                      -0.1735
+momentum_window5                         -0.1057
+bollinger_position_window20_num_std2.0   -0.0982
+price_to_sma_window10                    -0.0925
+price_to_ema_span10                      -0.0747
+momentum_window20                        -0.0669
+price_to_ema_span20                      -0.0563
+price_to_sma_window50                    -0.0545
+price_to_ema_span50                      -0.0474
+price_to_sma_window20                    -0.0335
+momentum_window10                        -0.0178
+rsi_window14                             -0.0078
+dtype: float64
+
+--- TSLA ---
+        sharpe  sortino  max_drawdown  ...    cagr  total_return  direction_accuracy
+window                                 ...                                          
+0      -1.2369  -1.5702       -0.3954  ... -0.5301       -0.3145              0.5122
+1       2.1311   3.8067       -0.1465  ...  1.5616        0.6005              0.6216
+2       0.6878   1.0414       -0.2219  ...  0.2587        0.1219              0.5400
+3       0.7930   1.0709       -0.2486  ...  0.3110        0.1785              0.5942
+4      -0.8392  -1.1747       -0.3102  ... -0.3055       -0.2660              0.4737
+5      -1.1748  -1.5411       -0.1404  ... -0.2005       -0.1007              0.4375
+6       1.3507   2.0301       -0.2115  ...  0.4613        0.2088              0.5882
+7      -0.7767  -1.0335       -0.2227  ... -0.2221       -0.1180              0.4848
+8      -0.2754  -0.4243       -0.3101  ... -0.0703       -0.0358              0.4865
+
+[9 rows x 8 columns]
+
+Summary across windows:
+  mean_sharpe: 0.0733
+  std_sharpe: 1.2100
+  pct_positive_sharpe_windows: 0.4444
+  worst_window: 0
+Mean coefficient per feature, across windows:
+momentum_window5                         -0.4332
+price_to_sma_window50                    -0.1897
+price_to_sma_window10                    -0.1826
+volatility_window10                      -0.1761
+price_to_ema_span50                      -0.1515
+price_to_ema_span10                      -0.1445
+price_to_ema_span20                      -0.1242
+momentum_window20                        -0.1100
+price_to_sma_window20                    -0.0162
+momentum_window10                        -0.0149
+rsi_window14                              0.0116
+volatility_window20                       0.0893
+bollinger_position_window20_num_std2.0    0.2316
+dtype: float64
+
+--- SNAP ---
+        sharpe  sortino  max_drawdown  ...    cagr  total_return  direction_accuracy
+window                                 ...                                          
+0       0.3024   0.5940       -0.0946  ...  0.0999        0.0487              0.4545
+1       1.7518   3.2593       -0.0537  ...  0.3452        0.1598                 NaN
+2       1.0766   1.5584       -0.2351  ...  0.5029        0.2259              0.5556
+3       1.2160   2.9265       -0.0994  ...  0.6215        0.2734              0.4792
+4       1.0117   2.5117       -0.3500  ...  0.9295        0.3891              0.4815
+5       0.7547   1.6638       -0.2103  ...  0.4391        0.1996              0.4878
+6      -1.1805  -1.5850       -0.2877  ... -0.4222       -0.2399              0.3951
+7       2.9869   6.0907       -0.0639  ...  0.9541        0.3714              0.6667
+8      -1.2673  -1.6402       -0.1665  ... -0.2160       -0.1146              0.4667
+
+[9 rows x 8 columns]
+
+Summary across windows:
+  mean_sharpe: 0.7391
+  std_sharpe: 1.3414
+  pct_positive_sharpe_windows: 0.7778
+  worst_window: 8
+Mean coefficient per feature, across windows:
+momentum_window20                        -0.3461
+momentum_window10                        -0.2474
+price_to_sma_window20                    -0.2102
+bollinger_position_window20_num_std2.0   -0.1994
+price_to_ema_span20                      -0.1639
+momentum_window5                         -0.1453
+price_to_sma_window10                    -0.1328
+price_to_ema_span50                      -0.1286
+price_to_ema_span10                      -0.1007
+volatility_window10                      -0.0497
+price_to_sma_window50                    -0.0336
+rsi_window14                              0.0140
+volatility_window20                       0.0270
+dtype: float64
+
+Done. Each ticker's full stitched backtest DataFrame, per-window table,
+and summary are available in the returned results dict.

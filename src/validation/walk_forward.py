@@ -227,3 +227,30 @@ def walk_forward_ml_signals(df: pd.DataFrame, feature_cfg: list, feature_columns
     feature_scores_df = pd.DataFrame(score_rows).set_index("window")
 
     return signals_df, feature_scores_df
+
+def buy_and_hold_signals(df: pd.DataFrame, train_size: int, test_size: int, step_size: int = None) -> pd.DataFrame:
+    """
+    The baseline every strategy should be compared against: stay long for
+    the entire test period, every window, no signal logic at all. Uses the
+    exact same window boundaries as walk_forward_signals so it's a fair,
+    apples-to-apples comparison (same dates, same costs via the same
+    BacktestEngine), not a shortcut that skips the walk-forward structure.
+    Since signal is always 1 with no gaps across window boundaries, the
+    position never resets - this enters long exactly once, on day one, and
+    never trades again, which is the honest, realistic behavior of actual
+    buy-and-hold (you only pay to enter once).
+    """
+    splits = walk_forward_splits(df, train_size, test_size, step_size)
+    if len(splits) == 0:
+        raise ValueError(
+            f"No complete window fits: {len(df)} rows is fewer than "
+            f"train_size + test_size = {train_size + test_size}."
+        )
+
+    pieces = []
+    for window_number, (train, test) in enumerate(splits):
+        piece = pd.DataFrame({"Close": test["Close"], "signal": 1})
+        piece["window"] = window_number
+        pieces.append(piece)
+
+    return pd.concat(pieces)
