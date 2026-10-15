@@ -202,7 +202,7 @@ def summarize_windows(per_window: pd.DataFrame, metric: str ="sharpe") -> dict:
     mean_val = per_window[metric].mean()
     std_val = per_window[metric].std()
     pct_positive = (per_window[metric] > 0).mean()
-    worst_window = per_window[metric].idxmin()
+    worst_window = per_window[metric].idxmin() if per_window[metric].notna().any() else np.nan
 
     return {
         f"mean_{metric}": mean_val,

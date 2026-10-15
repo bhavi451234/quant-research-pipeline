@@ -337,3 +337,72 @@ fully independent, since market regimes persist. The best rule-based
 strategy per stock was chosen after the fact, which makes that comparison
 conservative for logistic regression. Gradient boosting figures vary slightly
 between runs (Section 4).
+
+## 11. Hyperparameter tuning (Phase 10)
+
+Settings such as the logistic confidence threshold (0.05) and the momentum
+window and threshold (20 days, 0.02) were originally chosen by reasonable
+guess. This section tests them properly: settings are chosen on data from
+2014 to 2019 only, using the same walk-forward machinery (504 training days,
+126 test days) and the same 7 bps costs, then frozen and evaluated on the
+untouched 2020-2024 windows used everywhere else. The script refuses to run
+if the tuning data reaches into the evaluation period. The grids were kept
+deliberately small, one setting for all four stocks, to limit overfitting to
+the tuning data, and a setting was only eligible to win if at least 15 of the
+22 possible (stock, window) Sharpe ratios were valid.
+
+**Logistic regression threshold (mean Sharpe on the tuning period)**
+
+| Threshold | Pooled mean Sharpe | Valid windows |
+|---|---|---|
+| 0.02 | 0.002 | 22 |
+| **0.05** | **0.145** | 17 |
+| 0.08 | -0.351 | 8 |
+| 0.10 | -0.685 | 6 |
+| 0.15 | -1.198 | 2 |
+
+Higher thresholds make the model trade so rarely that most windows fall
+below the Sharpe minimum-sample rule, so their averages rest on few windows
+and are not comparable. The best eligible threshold was 0.05, the value
+already in use, so the logistic results are unchanged.
+
+**Momentum (pooled mean Sharpe on the tuning period)**
+
+| Window \ threshold | 0.00 | 0.02 | 0.04 |
+|---|---|---|---|
+| 10 days | -0.279 | -0.447 | -0.651 |
+| 20 days | -0.064 | -0.034 | -0.455 |
+| 40 days | **0.123** | -0.111 | -0.367 |
+
+The tuning period favoured a 40-day window with threshold 0 over the
+original 20 days and 0.02. The margin was small and partly driven by a single
+SNAP window (SNAP listed in 2017 and has only one tuning window).
+
+**Evaluation of the tuned setting (mean Sharpe, 2020-2024 windows)**
+
+| Momentum | AAPL | MSFT | TSLA | SNAP |
+|---|---|---|---|---|
+| Original (20 days, 0.02) | 0.53 | -0.67 | 0.80 | -0.13 |
+| Tuned (40 days, 0.0) | -0.46 | -0.44 | 0.14 | -0.24 |
+
+**Findings.**
+
+- The logistic threshold was validated: 0.05 was the best eligible value on
+  earlier data, though the margin over 0.02 is small relative to the
+  window-to-window variation.
+- The tuned momentum setting did worse than the original on three of the four
+  stocks in the evaluation period. A setting that looked best on 2016-2019
+  data did not transfer to 2020-2024, consistent with momentum's performance
+  depending heavily on the market regime.
+- The original momentum result on TSLA (0.80), the best single result earlier
+  in this document, should therefore be read as partly a product of an
+  unvalidated setting, not as a robust finding. The choice between the two
+  momentum settings is not made on evaluation-period performance; both are
+  reported.
+
+**Limitations.** The tuning period is short and has few windows per stock
+(SNAP has one), so the tuning signal is weak. Only the logistic threshold and
+momentum were tuned; the other strategies' settings were not, and gradient
+boosting was left out because it is not viable after costs and varies between
+runs. The best-per-ticker portfolio in Section 5 still uses the original
+momentum setting for TSLA.
