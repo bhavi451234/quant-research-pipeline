@@ -14,7 +14,7 @@ from src.pipeline import run_walkforward_for_ticker, run_walkforward_ml_for_tick
 st.set_page_config(page_title="Single Ticker | Quant Pipeline", page_icon="chart", layout="wide")
 apply_shared_style()
 
-TICKERS = ["AAPL", "MSFT", "TSLA", "SNAP"]
+TICKERS = ["AAPL", "MSFT", "TSLA", "SNAP", "JPM", "XOM", "JNJ"]
 
 
 @st.cache_data(show_spinner=False)

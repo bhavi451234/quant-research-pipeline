@@ -6,9 +6,9 @@
 experiment_name: "logistic_regression_walkforward"
 
 data:
-  tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
+  tickers: ["AAPL", "MSFT", "TSLA", "SNAP", "JPM", "XOM", "JNJ"]
   start_date: "2018-01-01"
-  end_date: "2024-12-31"
+  end_date: "2025-12-31"
 
 # All 13 features get computed; `ml.feature_columns` below selects which
 # of the resulting columns the model actually trains on.

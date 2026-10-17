@@ -23,7 +23,7 @@ from src.pipeline import run_walkforward, run_walkforward_ml
 
 TUNE_START = "2014-01-01"
 TUNE_END = "2020-01-01"  # yfinance treats the end date as exclusive: data runs to 31 Dec 2019
-MIN_WINDOWS = 15  # a setting needs at least this many valid (ticker, window) Sharpes to be eligible
+MIN_WINDOWS = 29  # a setting needs at least this many valid (ticker, window) Sharpes to be eligible
 
 ML_THRESHOLDS = [0.02, 0.05, 0.08, 0.10, 0.15]
 ML_BASE_CONFIG = "config/walkforward_ml.yaml"

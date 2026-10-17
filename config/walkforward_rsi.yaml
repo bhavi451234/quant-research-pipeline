@@ -1,9 +1,9 @@
 experiment_name: "rsi_mean_reversion_walkforward"
 
 data:
-  tickers: ["AAPL", "MSFT", "TSLA", "SNAP"]
+  tickers: ["AAPL", "MSFT", "TSLA", "SNAP", "JPM", "XOM", "JNJ"]
   start_date: "2018-01-01"
-  end_date: "2024-12-31"
+  end_date: "2025-12-31"
 
 features:
   - name: rsi

@@ -14,7 +14,7 @@ from src.pipeline import run_portfolio_single_strategy, run_portfolio_best_per_t
 st.set_page_config(page_title="Portfolio Builder | Quant Pipeline", page_icon="chart", layout="wide")
 apply_shared_style()
 
-TICKERS = ["AAPL", "MSFT", "TSLA", "SNAP"]
+TICKERS = ["AAPL", "MSFT", "TSLA", "SNAP", "JPM", "XOM", "JNJ"]
 STRATEGY_OPTIONS = list(STRATEGY_PRESETS.keys()) + ["ml_logistic", "ml_gradient_boosting"]
 PORTFOLIO_METRICS = ["sharpe", "sortino", "max_drawdown", "cagr", "total_return"]
 PER_TICKER_METRICS = PORTFOLIO_METRICS + ["win_rate", "turnover", "direction_accuracy"]

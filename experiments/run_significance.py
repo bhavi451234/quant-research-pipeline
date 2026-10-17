@@ -23,7 +23,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from src.evaluation.metrics import bootstrap_mean_ci, paired_bootstrap_difference
 
-STOCKS = ["AAPL", "MSFT", "TSLA", "SNAP"]
+STOCKS = ["AAPL", "MSFT", "TSLA", "SNAP", "JPM", "XOM", "JNJ"]
 BUY_HOLD = "buy_and_hold"
 LOGISTIC = "logistic_regression_walkforward"
 GRADIENT = "gradient_boosting_walkforward"

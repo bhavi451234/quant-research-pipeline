@@ -14,7 +14,7 @@ from dashboard.pages_shared import STRATEGY_PRESETS, ML_FEATURE_CFG, ML_FEATURE_
 st.set_page_config(page_title="Strategy Comparison | Quant Pipeline", page_icon="chart", layout="wide")
 apply_shared_style()
 
-TICKERS = ["AAPL", "MSFT", "TSLA", "SNAP"]
+TICKERS = ["AAPL", "MSFT", "TSLA", "SNAP", "JPM", "XOM", "JNJ"]
 
 ALL_STRATEGIES = list(STRATEGY_PRESETS.keys()) + ["ml_logistic", "ml_gradient_boosting"]
 
