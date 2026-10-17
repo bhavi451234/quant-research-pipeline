@@ -1,0 +1,119 @@
+
+Cost levels (bps): [0, 5, 7, 10, 20]
+Configs: ['config/walkforward_bollinger.yaml', 'config/walkforward_ema.yaml', 'config/walkforward_ml.yaml', 'config/walkforward_ml_gb.yaml', 'config/walkforward_ml_tuned.yaml', 'config/walkforward_momentum.yaml', 'config/walkforward_momentum_tuned.yaml', 'config/walkforward_rsi.yaml', 'config/walkforward_sma.yaml']
+
+=== bollinger_reversion_walkforward ===
+  done: bollinger_reversion_walkforward / AAPL
+  done: bollinger_reversion_walkforward / MSFT
+  done: bollinger_reversion_walkforward / TSLA
+  done: bollinger_reversion_walkforward / SNAP
+  done: bollinger_reversion_walkforward / JPM
+  done: bollinger_reversion_walkforward / XOM
+  done: bollinger_reversion_walkforward / JNJ
+=== ema_crossover_walkforward ===
+  done: ema_crossover_walkforward / AAPL
+  done: ema_crossover_walkforward / MSFT
+  done: ema_crossover_walkforward / TSLA
+  done: ema_crossover_walkforward / SNAP
+  done: ema_crossover_walkforward / JPM
+  done: ema_crossover_walkforward / XOM
+  done: ema_crossover_walkforward / JNJ
+=== logistic_regression_walkforward ===
+  done: logistic_regression_walkforward / AAPL
+  done: logistic_regression_walkforward / MSFT
+  done: logistic_regression_walkforward / TSLA
+  done: logistic_regression_walkforward / SNAP
+  done: logistic_regression_walkforward / JPM
+  done: logistic_regression_walkforward / XOM
+  done: logistic_regression_walkforward / JNJ
+=== gradient_boosting_walkforward ===
+  done: gradient_boosting_walkforward / AAPL
+  done: gradient_boosting_walkforward / MSFT
+  done: gradient_boosting_walkforward / TSLA
+  done: gradient_boosting_walkforward / SNAP
+  done: gradient_boosting_walkforward / JPM
+  done: gradient_boosting_walkforward / XOM
+  done: gradient_boosting_walkforward / JNJ
+=== logistic_regression_tuned_walkforward ===
+  done: logistic_regression_tuned_walkforward / AAPL
+  done: logistic_regression_tuned_walkforward / MSFT
+  done: logistic_regression_tuned_walkforward / TSLA
+  done: logistic_regression_tuned_walkforward / SNAP
+  done: logistic_regression_tuned_walkforward / JPM
+  done: logistic_regression_tuned_walkforward / XOM
+  done: logistic_regression_tuned_walkforward / JNJ
+=== momentum_walkforward ===
+  done: momentum_walkforward / AAPL
+  done: momentum_walkforward / MSFT
+  done: momentum_walkforward / TSLA
+  done: momentum_walkforward / SNAP
+  done: momentum_walkforward / JPM
+  done: momentum_walkforward / XOM
+  done: momentum_walkforward / JNJ
+=== momentum_tuned_walkforward ===
+  done: momentum_tuned_walkforward / AAPL
+  done: momentum_tuned_walkforward / MSFT
+  done: momentum_tuned_walkforward / TSLA
+  done: momentum_tuned_walkforward / SNAP
+  done: momentum_tuned_walkforward / JPM
+  done: momentum_tuned_walkforward / XOM
+  done: momentum_tuned_walkforward / JNJ
+=== rsi_mean_reversion_walkforward ===
+  done: rsi_mean_reversion_walkforward / AAPL
+  done: rsi_mean_reversion_walkforward / MSFT
+  done: rsi_mean_reversion_walkforward / TSLA
+  done: rsi_mean_reversion_walkforward / SNAP
+  done: rsi_mean_reversion_walkforward / JPM
+  done: rsi_mean_reversion_walkforward / XOM
+  done: rsi_mean_reversion_walkforward / JNJ
+=== sma_crossover_walkforward ===
+  done: sma_crossover_walkforward / AAPL
+  done: sma_crossover_walkforward / MSFT
+  done: sma_crossover_walkforward / TSLA
+  done: sma_crossover_walkforward / SNAP
+  done: sma_crossover_walkforward / JPM
+  done: sma_crossover_walkforward / XOM
+  done: sma_crossover_walkforward / JNJ
+
+=== Mean Sharpe vs cost (average over tickers) ===
+cost_bps                                  0      5      7      10     20
+strategy                                                                
+bollinger_reversion_walkforward       -0.553 -0.698 -0.759 -0.849 -1.138
+ema_crossover_walkforward              0.014  0.000 -0.005 -0.013 -0.039
+gradient_boosting_walkforward          0.043 -0.171 -0.257 -0.385 -0.809
+logistic_regression_tuned_walkforward  0.200  0.098  0.074  0.037 -0.084
+logistic_regression_walkforward        0.259  0.191  0.164  0.123 -0.013
+momentum_tuned_walkforward            -0.192 -0.253 -0.277 -0.313 -0.433
+momentum_walkforward                  -0.105 -0.193 -0.229 -0.282 -0.459
+rsi_mean_reversion_walkforward        -0.641 -0.578 -0.619 -0.679 -0.880
+sma_crossover_walkforward              0.145  0.129  0.123  0.114  0.083
+
+=== Mean turnover per window (at lowest cost) ===
+strategy
+bollinger_reversion_walkforward          0.115
+ema_crossover_walkforward                0.019
+gradient_boosting_walkforward            0.394
+logistic_regression_tuned_walkforward    0.114
+logistic_regression_walkforward          0.078
+momentum_tuned_walkforward               0.139
+momentum_walkforward                     0.186
+rsi_mean_reversion_walkforward           0.068
+sma_crossover_walkforward                0.023
+Name: mean_turnover, dtype: float64
+
+=== Breakeven cost, bps (Sharpe reaches 0) ===
+                                       ALL (avg)  ...        XOM
+strategy                                          ...           
+bollinger_reversion_walkforward        never > 0  ...  never > 0
+ema_crossover_walkforward                    5.2  ...       14.9
+gradient_boosting_walkforward                1.0  ...  never > 0
+logistic_regression_tuned_walkforward       13.1  ...  never > 0
+logistic_regression_walkforward             19.1  ...  never > 0
+momentum_tuned_walkforward             never > 0  ...        1.2
+momentum_walkforward                   never > 0  ...  never > 0
+rsi_mean_reversion_walkforward         never > 0  ...  never > 0
+sma_crossover_walkforward                   > 20  ...       > 20
+
+[9 rows x 8 columns]
+
+Full results saved to results/cost_sweep.csv
