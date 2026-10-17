@@ -6,7 +6,6 @@ __pycache__/
 venv/
 
 # Data cache - don't commit downloaded price data
-data/cache/
 *.csv
 
 # Environment / secrets
