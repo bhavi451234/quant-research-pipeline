@@ -1,0 +1,43 @@
+
+Tuning on 2014-01-01 to 2019-12-31; evaluation starts 2020-01-03.
+
+done: logistic threshold 0.02
+done: logistic threshold 0.05
+done: logistic threshold 0.08
+done: logistic threshold 0.1
+done: logistic threshold 0.15
+
+=== Logistic regression threshold: mean Sharpe on the tuning period ===
+ threshold   AAPL   MSFT   TSLA   SNAP    JPM    XOM    JNJ  pooled_mean_sharpe  n_windows
+      0.02 -0.089  0.911 -0.427 -2.552 -0.918 -1.089 -0.583              -0.413         42
+      0.05 -1.358  1.342  0.581 -1.762 -1.154 -1.531 -1.452              -0.440         28
+      0.08 -2.004  0.876 -2.753    NaN -1.314    NaN -0.977              -0.735         12
+      0.10 -4.005  0.576 -2.700    NaN    NaN    NaN -1.576              -0.944          8
+      0.15    NaN -1.100    NaN    NaN    NaN    NaN    NaN              -1.100          2
+
+Best setting (needs at least 29 valid windows): threshold = 0.02
+Saved to results/tuning_ml.csv
+done: momentum window 10, threshold 0.0
+done: momentum window 10, threshold 0.02
+done: momentum window 10, threshold 0.04
+done: momentum window 20, threshold 0.0
+done: momentum window 20, threshold 0.02
+done: momentum window 20, threshold 0.04
+done: momentum window 40, threshold 0.0
+done: momentum window 40, threshold 0.02
+done: momentum window 40, threshold 0.04
+
+=== Momentum: mean Sharpe on the tuning period ===
+ window  threshold   AAPL   MSFT   TSLA   SNAP    JPM    XOM    JNJ  pooled_mean_sharpe  n_windows
+     10       0.00  0.671 -1.220 -0.032 -2.081 -0.518 -0.738 -1.089              -0.525         43
+     10       0.02  0.823 -1.853 -0.002 -2.602 -0.754 -1.345 -0.239              -0.609         43
+     10       0.04  0.374 -1.779 -0.166 -3.324 -0.593 -1.075 -1.512              -0.845         42
+     20       0.00  0.505 -0.479 -0.390  1.131 -0.899 -0.826 -0.821              -0.447         43
+     20       0.02  1.023 -0.644 -0.542  0.390 -0.748 -0.850 -0.966              -0.435         43
+     20       0.04  0.451 -1.501 -0.449  0.482 -0.450 -0.795 -0.996              -0.598         43
+     40       0.00 -0.160  0.225  0.081  1.695  0.153 -1.029 -0.091              -0.094         43
+     40       0.02 -0.548  0.397 -0.405  1.453  0.251 -0.424 -0.571              -0.178         43
+     40       0.04 -0.189 -0.420 -0.682  0.979 -0.541 -0.436 -1.061              -0.519         43
+
+Best setting (needs at least 29 valid windows): window = 40.0, threshold = 0.0
+Saved to results/tuning_momentum.csv
