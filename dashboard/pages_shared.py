@@ -5,6 +5,8 @@ so Page 1, Page 2, and Page 3 can never drift out of sync with each other
 differences between the dashboard and the CLI earlier in this project).
 """
 
+from src.data.loader import load_ticker
+
 STRATEGY_PRESETS = {
     "sma_crossover": {
         "feature_cfg": lambda p: [
@@ -112,3 +114,25 @@ def union_feature_cfg(strategy_keys):
             add(entry)
 
     return combined
+
+def evaluation_summary(result, test_size):
+    """Whole-evaluation-period numbers for a strategy, built from its per-window results."""
+    pw = result["per_window"]
+    years = len(pw) * test_size / 252
+    total_return = float((1 + pw["total_return"]).prod() - 1)  # windows are back to back, so returns compound
+    return {
+        "total_return": total_return,
+        "cagr": (1 + total_return) ** (1 / years) - 1,
+        "worst_drawdown": float(pw["max_drawdown"].min()),  # deepest drop inside any single window
+    }
+
+
+def buy_and_hold(ticker, n_windows, train_size, test_size):
+    """Return and CAGR of just holding the stock over exactly the same days the strategies were tested on."""
+    cfg = build_base_config(train_size, test_size, 100000)["data"]
+    close = load_ticker(ticker, cfg["start_date"], cfg["end_date"])["Close"]
+    first = train_size                              # first test day
+    last = train_size + n_windows * test_size - 1   # last test day
+    total_return = float(close.iloc[last] / close.iloc[first - 1] - 1)
+    years = n_windows * test_size / 252
+    return {"total_return": total_return, "cagr": (1 + total_return) ** (1 / years) - 1}
