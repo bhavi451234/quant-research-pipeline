@@ -3,6 +3,8 @@ from pathlib import Path
 
 sys.path.append(str(Path(__file__).resolve().parents[2]))
 
+from datetime import date
+
 import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
@@ -29,8 +31,8 @@ CHART_METRICS = {
 
 
 @st.cache_data(show_spinner=False)
-def run_one_strategy(ticker, strategy_key, train_size, test_size, initial_capital):
-    base = build_base_config(train_size, test_size, initial_capital)
+def run_one_strategy(ticker, strategy_key, train_size, test_size, initial_capital, start_date, end_date):
+    base = build_base_config(train_size, test_size, initial_capital, start_date, end_date)
     if strategy_key.startswith("ml_"):
         model_type = strategy_key.replace("ml_", "")
         base["features"] = ML_FEATURE_CFG
@@ -49,10 +51,21 @@ st.caption("Runs every strategy, rule-based and ML, on one ticker, using each st
 with st.sidebar:
     st.header("Controls")
     ticker = st.selectbox("Ticker", TICKERS)
-    train_size = st.number_input("Train size (days)", value=504, step=21)
-    test_size = st.number_input("Test size (days)", value=126, step=21)
+    start_date = st.date_input("Start date", value=date(2018, 1, 1),
+                               min_value=date(2013, 1, 1), max_value=date(2025, 12, 31))
+    end_date = st.date_input("End date", value=date(2025, 12, 31),
+                             min_value=date(2013, 1, 1), max_value=date(2025, 12, 31))
+    with st.expander("Walk-forward settings"):
+        train_size = st.number_input("Train size (days)", value=504, step=21)
+        test_size = st.number_input("Test size (days)", value=126, step=21)
     initial_capital = st.number_input("Initial capital (Rs)", value=100000, step=10000)
     run_clicked = st.button("Run All Strategies", type="primary", use_container_width=True)
+    st.caption("The first train-size days are used for training only, so results start about two years after the start date.")
+
+start_str, end_str = str(start_date), str(end_date)
+if (end_date - start_date).days < (train_size + test_size) * 365 / 252:
+    st.error("Date range too short: it needs room for one training window and one test window.")
+    st.stop()
 
 if run_clicked:
     rows = []
@@ -62,7 +75,8 @@ if run_clicked:
     for i, strategy_key in enumerate(ALL_STRATEGIES):
         progress.progress((i) / len(ALL_STRATEGIES), text=f"Running {strategy_key}...")
         try:
-            result = run_one_strategy(ticker, strategy_key, train_size, test_size, initial_capital)
+            result = run_one_strategy(ticker, strategy_key, train_size, test_size,
+                                      initial_capital, start_str, end_str)
             summary = result["summary"]
             overall = evaluation_summary(result, test_size)
             n_windows = len(result["per_window"])
@@ -82,7 +96,7 @@ if run_clicked:
     benchmarks = {}
     if n_windows:
         for name in (ticker, "SPY"):
-            benchmarks[name] = buy_and_hold(name, n_windows, train_size, test_size)
+            benchmarks[name] = buy_and_hold(name, n_windows, train_size, test_size, start_str, end_str)
     progress.progress(1.0, text="Done.")
     st.session_state["comparison_rows"] = rows
     st.session_state["comparison_errors"] = errors
@@ -115,20 +129,35 @@ if "comparison_rows" in st.session_state:
         ranked = df.sort_values(metric, ascending=False)
 
         st.subheader(f"{ticker}: {chart_label} by Strategy")
-        colors = [metric_color(v) for v in ranked[metric]]
-        fig = go.Figure()
-        fig.add_trace(go.Bar(x=ranked.index, y=ranked[metric], marker_color=colors))
+        names = list(ranked.index)
+        values = list(ranked[metric])
+        colors = [metric_color(v) for v in values]
+        n_benchmarks = 0
         if metric != "mean_sharpe":
-            hold = benchmarks[ticker]["total_return" if metric == "total_return_pct" else "cagr"] * 100
-            fig.add_hline(y=hold, line_dash="dash", line_color="#E5E7EB",
-                          annotation_text=f"{ticker} buy & hold", annotation_position="top left")
+            key = "total_return" if metric == "total_return_pct" else "cagr"
+            for name, shade in (("SPY", "#60A5FA"), (ticker, "#F59E0B")):
+                names.insert(0, f"{name} buy & hold")
+                values.insert(0, benchmarks[name][key] * 100)
+                colors.insert(0, shade)
+                n_benchmarks += 1
+
+        suffix = "" if metric == "mean_sharpe" else "%"
+        decimals = 2 if metric == "mean_sharpe" else 1
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=values, y=names, orientation="h", marker_color=colors,
+            text=[f"{v:.{decimals}f}{suffix}" for v in values],
+            textposition="outside", cliponaxis=False,
+        ))
+        if n_benchmarks:
+            fig.add_hline(y=n_benchmarks - 0.5, line_color="#4B5563", line_width=1)
         fig.update_layout(
             template="plotly_dark", paper_bgcolor="#0E1117", plot_bgcolor="#0E1117",
-            height=420, margin=dict(l=40, r=20, t=20, b=40),
-            xaxis_title="Strategy", yaxis_title=chart_label,
+            height=90 + 48 * len(names), margin=dict(l=10, r=60, t=10, b=40),
+            xaxis_title=chart_label, yaxis_title=None,
+            yaxis=dict(autorange="reversed"),
         )
         st.plotly_chart(fig, use_container_width=True)
-
         st.subheader("Full comparison table")
         st.dataframe(ranked.round(4), use_container_width=True)
         st.caption(

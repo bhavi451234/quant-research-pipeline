@@ -61,10 +61,11 @@ ML_FEATURE_COLUMNS = [
 ]
 
 
-def build_base_config(train_size, test_size, initial_capital):
+def build_base_config(train_size, test_size, initial_capital,
+                      start_date="2018-01-01", end_date="2025-12-31"):
     """The parts of a config every page needs, regardless of strategy."""
     return {
-        "data": {"start_date": "2018-01-01", "end_date": "2025-12-31"},
+        "data": {"start_date": start_date, "end_date": end_date},
         "walk_forward": {"train_size": train_size, "test_size": test_size},
         "backtest": {
             "initial_capital": initial_capital,
@@ -115,6 +116,7 @@ def union_feature_cfg(strategy_keys):
 
     return combined
 
+
 def evaluation_summary(result, test_size):
     """Whole-evaluation-period numbers for a strategy, built from its per-window results."""
     pw = result["per_window"]
@@ -127,10 +129,9 @@ def evaluation_summary(result, test_size):
     }
 
 
-def buy_and_hold(ticker, n_windows, train_size, test_size):
+def buy_and_hold(ticker, n_windows, train_size, test_size, start_date, end_date):
     """Return and CAGR of just holding the stock over exactly the same days the strategies were tested on."""
-    cfg = build_base_config(train_size, test_size, 100000)["data"]
-    close = load_ticker(ticker, cfg["start_date"], cfg["end_date"])["Close"]
+    close = load_ticker(ticker, start_date, end_date)["Close"]
     first = train_size                              # first test day
     last = train_size + n_windows * test_size - 1   # last test day
     total_return = float(close.iloc[last] / close.iloc[first - 1] - 1)
