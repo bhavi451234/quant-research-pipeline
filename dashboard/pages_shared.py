@@ -62,7 +62,7 @@ ML_FEATURE_COLUMNS = [
 def build_base_config(train_size, test_size, initial_capital):
     """The parts of a config every page needs, regardless of strategy."""
     return {
-        "data": {"start_date": "2018-01-01", "end_date": "2024-12-31"},
+        "data": {"start_date": "2018-01-01", "end_date": "2025-12-31"},
         "walk_forward": {"train_size": train_size, "test_size": test_size},
         "backtest": {
             "initial_capital": initial_capital,
